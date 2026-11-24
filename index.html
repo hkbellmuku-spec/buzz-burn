@@ -6773,6 +6773,157 @@ choiceModal=function(title,body,opts){
  return _cmA(title,body,opts);
 };
 
+/* =========================================================
+   オープニングムービー：加賀ジュンジ主催 ドーム大会
+   ========================================================= */
+const OP_KEY="bb_op_seen_v1";
+document.head.insertAdjacentHTML("beforeend",`<style>
+#op{position:fixed;inset:0;z-index:50;background:#000;overflow:hidden;color:#fff;font-family:inherit;touch-action:manipulation}
+#op canvas{position:absolute;inset:0;width:100%;height:100%}
+#op .lay{position:absolute;inset:0;pointer-events:none}
+#op .cap{position:absolute;left:0;right:0;text-align:center;font-weight:900;letter-spacing:.06em;opacity:0;transition:opacity .5s,transform .5s;text-shadow:0 0 18px rgba(0,0,0,.8)}
+#op .on{opacity:1}
+#op .ava{position:absolute;transition:transform .55s cubic-bezier(.2,1.4,.4,1),opacity .4s;opacity:0}
+#op .bub{position:absolute;left:50%;transform:translateX(-50%) scale(.6);background:#fff;color:#14101c;font-weight:900;border-radius:16px;padding:10px 14px;font-size:16px;white-space:nowrap;opacity:0;transition:all .35s cubic-bezier(.2,1.5,.4,1)}
+#op .bub.on{opacity:1;transform:translateX(-50%) scale(1)}
+#op .bub:after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-8px;border:8px solid transparent;border-top-color:#fff;border-bottom:0}
+#op .skip{position:absolute;right:12px;top:calc(env(safe-area-inset-top) + 12px);font-size:12px;color:#fff;opacity:.6;border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:5px 12px;pointer-events:auto;background:rgba(0,0,0,.3)}
+#op .shake{animation:opShake .5s}
+@keyframes opShake{0%,100%{transform:translate(0,0)}20%{transform:translate(-8px,4px)}40%{transform:translate(7px,-5px)}60%{transform:translate(-5px,-3px)}80%{transform:translate(4px,5px)}}
+#op .yusho{font-size:clamp(34px,11vw,64px);line-height:1.1;background:linear-gradient(180deg,#fff7c2,#ffd23f 45%,#ff8a3a);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #7a1d3a) drop-shadow(0 0 24px rgba(255,120,40,.7))}
+#op .logo2{font-size:clamp(52px,16vw,92px);line-height:1;font-weight:900;color:#fff;text-shadow:0 0 6px #fff,0 0 18px #ff2e88,0 0 36px #9b5cff,0 0 60px #2de2e6}
+.opsplash{position:fixed;inset:0;z-index:49;background:#07050d;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:14px}
+.opsplash .t{font-weight:900;letter-spacing:.3em;font-size:15px;animation:opBlink 1.4s infinite}
+@keyframes opBlink{50%{opacity:.25}}
+</style>`);
+
+/* ---- 音：WebAudioの簡単なビート ---- */
+function opAudio(){try{if(typeof AU!=="undefined"&&AU.on===false)return null;const ac=window._g3ac||(window._g3ac=new (window.AudioContext||window.webkitAudioContext)());if(ac.state==="suspended")ac.resume();
+ const out=ac.createGain();out.gain.value=0.32;out.connect(ac.destination);
+ const noiseBuf=(()=>{const b=ac.createBuffer(1,ac.sampleRate*0.5,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b})();
+ const kick=t=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(40,t+0.18);g.gain.setValueAtTime(1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.connect(g).connect(out);o.start(t);o.stop(t+0.32)};
+ const hat=(t,v)=>{const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noiseBuf;f.type="highpass";f.frequency.value=7000;g.gain.setValueAtTime(v||0.25,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.06);s.connect(f).connect(g).connect(out);s.start(t);s.stop(t+0.08)};
+ const bass=(t,fr,d)=>{const o=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();o.type="sawtooth";o.frequency.value=fr;f.type="lowpass";f.frequency.value=600;g.gain.setValueAtTime(0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+d);o.connect(f).connect(g).connect(out);o.start(t);o.stop(t+d+0.02)};
+ const lead=(t,fr,d,v)=>{const o=ac.createOscillator(),g=ac.createGain();o.type="square";o.frequency.value=fr;g.gain.setValueAtTime(v||0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+d);o.connect(g).connect(out);o.start(t);o.stop(t+d+0.02)};
+ const riser=(t,d)=>{const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noiseBuf;s.loop=true;f.type="bandpass";f.frequency.setValueAtTime(400,t);f.frequency.exponentialRampToValueAtTime(8000,t+d);g.gain.setValueAtTime(0.01,t);g.gain.exponentialRampToValueAtTime(0.5,t+d);s.connect(f).connect(g).connect(out);s.start(t);s.stop(t+d)};
+ const impact=t=>{kick(t);const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=noiseBuf;f.type="lowpass";f.frequency.value=1800;g.gain.setValueAtTime(0.9,t);g.gain.exponentialRampToValueAtTime(0.001,t+1.2);s.connect(f).connect(g).connect(out);s.start(t);s.stop(t+0.5);bass(t,41,1.4)};
+ return {ac,out,kick,hat,bass,lead,riser,impact,stop(){try{out.gain.setTargetAtTime(0,ac.currentTime,0.08);setTimeout(()=>out.disconnect(),600)}catch(e){}}}}catch(e){return null}}
+function opSchedule(A){if(!A)return;const t0=A.ac.currentTime,B=60/128,beat=i=>t0+5.4+i*B;
+ // 序盤：低いドローン
+ A.bass(t0+0.3,55,2.2);A.bass(t0+2.6,49,2.6);
+ // 5.4秒〜 ビート
+ const roots=[55,55,65.4,49];
+ for(let i=0;i<24;i++){const t=beat(i);A.kick(t);A.hat(t+B/2,0.18);if(i%2===0)A.bass(t,roots[Math.floor(i/4)%4],B*1.6);
+  if(i>=8&&i<20){const n=[440,523,659,784,659,523][i%6];A.lead(t+B/2,n,0.18,0.05)}}
+ A.riser(beat(20),B*4-0.05);
+ A.impact(t0+17.0);A.impact(t0+19.0);
+ for(let i=0;i<8;i++){const t=t0+19.0+i*B;A.kick(t);A.hat(t+B/2,0.22);A.lead(t,[523,659,784,1046][i%4],0.22,0.06)}}
+function opVoice(k){try{const src=typeof VOICE_SRC!=="undefined"&&VOICE_SRC[k];if(!src)return;if(typeof AU!=="undefined"&&AU.on===false)return;const a=new Audio(src);a.volume=0.55;a.play().catch(()=>{})}catch(e){}}
+
+/* ---- 本体 ---- */
+function playOpening(after){
+ const H=HOST,caps=["poko","k9sen","jaka","sekiyu"].map(id=>rosterById(id)).filter(Boolean);
+ const ICONS=[["🔫","FPS"],["⚾","野球"],["🍳","料理"],["⚽","PK"],["🚗","カーチェイス"],["🎤","カラオケ"]];
+ const op=document.createElement("div");op.id="op";
+ op.innerHTML=`<canvas></canvas><div class="lay" id="opL"></div><div class="skip">SKIP ▶▶</div>`;
+ document.body.appendChild(op);
+ const cv=op.querySelector("canvas"),ctx=cv.getContext("2d"),L=op.querySelector("#opL");
+ let W=0,Hh=0;const fit=()=>{const d=Math.min(2,window.devicePixelRatio||1);W=op.clientWidth;Hh=op.clientHeight;cv.width=W*d;cv.height=Hh*d;ctx.setTransform(d,0,0,d,0,0)};fit();window.addEventListener("resize",fit);
+ const A=opAudio();opSchedule(A);
+ let ended=false,start=performance.now(),scene=0,parts=[],flash=0,shakeT=0;const timers=[];
+ const at=(ms,f)=>timers.push(setTimeout(()=>{if(!ended)f()},ms));
+ const el=(html,style)=>{const d=document.createElement("div");d.innerHTML=html;d.firstElementChild&&Object.assign(d.firstElementChild.style,style||{});const n=d.firstElementChild;L.appendChild(n);return n};
+ const cap=(txt,top,size,cls)=>{const n=el(`<div class="cap ${cls||""}" style="top:${top};font-size:${size}px">${txt}</div>`);requestAnimationFrame(()=>requestAnimationFrame(()=>n.classList.add("on")));return n};
+ const clear=()=>{L.innerHTML=""};
+ const finish=()=>{if(ended)return;ended=true;timers.forEach(clearTimeout);if(A)A.stop();try{localStorage.setItem(OP_KEY,"1")}catch(e){}op.style.transition="opacity .5s";op.style.opacity="0";setTimeout(()=>{op.remove();window.removeEventListener("resize",fit);after&&after()},500)};
+ op.addEventListener("click",()=>{if(performance.now()-start>400)finish()});
+ const confetti=(n)=>{for(let i=0;i<n;i++)parts.push({x:R(0,W),y:R(-Hh*0.3,0),vx:R(-40,40),vy:R(80,260),r:R(0,7),vr:R(-6,6),c:pick(["#ff2e88","#ffd23f","#2de2e6","#9b5cff","#fff"]),s:R(5,10)})};
+ // 観客のペンライト
+ const crowd=[];for(let i=0;i<420;i++)crowd.push({x:Math.random(),y:Math.random(),c:pick(["#ff2e88","#2de2e6","#ffd23f","#9b5cff","#fff"]),p:Math.random()*7});
+
+ /* シーン（時刻ms） */
+ // 0：暗転と一言
+ at(300,()=>{scene=0;cap("その夜――","42%",20)});
+ at(600,()=>opVoice("longnight"));
+ at(1500,()=>{cap("ドームが、揺れた。","50%",26)});
+ // 1：ドーム外観
+ at(2800,()=>{clear();scene=1;cap("加賀ジュンジ 主催","62%",16);at(450,()=>cap("ストリーマー<br>ドーム大会","67%",34,"yusho"))});
+ at(3300,()=>opVoice("dome"));
+ // 2：場内＋主催者
+ at(5400,()=>{clear();scene=2;flash=1;
+  const a=el(`<div class="ava" style="left:50%;bottom:-6%;transform:translate(-50%,40px)">${avatar(H.look,"happy",Math.min(220,W*0.52))}</div>`);
+  requestAnimationFrame(()=>{a.style.opacity=1;a.style.transform="translate(-50%,0)"});
+  at(500,()=>{const b=el(`<div class="bub" style="bottom:calc(6% + ${Math.min(240,W*0.56)}px)">全国の配信者ども、待たせたな！</div>`);requestAnimationFrame(()=>b.classList.add("on"))});
+  at(1600,()=>{opVoice("nyujo")});
+  at(2000,()=>{cap("観客 55,000人 ／ 同接 300万","8%",14)})});
+ // 3：キャプテン紹介
+ caps.forEach((p,i)=>at(9000+i*800,()=>{clear();scene=3;flash=0.7;
+  const side=i%2?"right":"left",col=["#ff2e88","#2de2e6","#ffd23f","#9b5cff"][i];
+  const a=el(`<div class="ava" style="${side}:-4%;bottom:10%;transform:translateX(${i%2?"":"-"}60px)">${avatar(p.look,"happy",Math.min(230,W*0.6))}</div>`);
+  requestAnimationFrame(()=>{a.style.opacity=1;a.style.transform="translateX(0)"});
+  el(`<div class="cap on" style="top:16%;font-size:13px;color:${col};letter-spacing:.4em">CAPTAIN</div>`);
+  el(`<div class="cap on" style="top:21%;font-size:${Math.min(44,W*0.11)}px">${p.name}</div>`)}));
+ // 4：6種目
+ at(12300,()=>{clear();scene=4;cap("2日間 ・ 6種目","14%",22);
+  const g=el(`<div style="position:absolute;left:8%;right:8%;top:26%;display:grid;grid-template-columns:repeat(3,1fr);gap:10px"></div>`);
+  ICONS.forEach(([e,n],i)=>at(120+i*160,()=>{const c=document.createElement("div");c.style.cssText="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);border-radius:16px;padding:14px 4px;text-align:center;font-weight:900;font-size:13px;transform:scale(.4);opacity:0;transition:all .3s cubic-bezier(.2,1.6,.4,1)";c.innerHTML=`<div style="font-size:34px">${e}</div>${n}`;g.appendChild(c);requestAnimationFrame(()=>{c.style.transform="scale(1)";c.style.opacity=1});if(A)A.hat(A.ac.currentTime,0.4)}))});
+ // 5：新人と「優勝はお前だ」
+ at(14400,()=>{clear();scene=5;
+  cap("そして――<br>まだ誰も知らない新人が、ひとり。","10%",17);
+  el(`<div class="ava" style="opacity:1;left:62%;bottom:12%;transform:translateX(-50%)"><svg viewBox="0 0 120 140" width="${Math.min(150,W*0.36)}"><ellipse cx="60" cy="134" rx="40" ry="6" fill="rgba(255,255,255,.25)"/><path d="M14 140 Q16 104 40 98 Q50 95 52 88 L68 88 Q70 95 80 98 Q104 104 106 140Z" fill="#0b0912"/><ellipse cx="60" cy="54" rx="22" ry="27" fill="#0b0912"/><path d="M36 46 Q38 20 60 19 Q84 20 85 48 Q78 34 60 32 Q44 33 36 46Z" fill="#0b0912"/><text x="60" y="64" text-anchor="middle" font-size="26" font-weight="900" fill="#ffd23f">?</text></svg></div>`);
+  const a=el(`<div class="ava" style="left:-6%;bottom:6%;transform:translateX(-60px)">${avatar(H.look,"normal",Math.min(210,W*0.5))}</div>`);
+  at(700,()=>{a.style.opacity=1;a.style.transform="translateX(0)"});
+  at(900,()=>opVoice("kakushin"))});
+ at(17000,()=>{L.querySelectorAll(".cap").forEach(n=>n.remove());
+  const y=el(`<div class="cap on yusho" style="top:12%">優勝は……<br>お前だーーー！！</div>`);
+  const hand=el(`<div style="position:absolute;left:38%;bottom:30%;font-size:${Math.min(80,W*0.2)}px;transform:scale(.3) rotate(-10deg);opacity:0;transition:all .35s cubic-bezier(.2,1.8,.4,1)">👉</div>`);requestAnimationFrame(()=>{hand.style.transform="scale(1) rotate(0)";hand.style.opacity=1});
+  const hv=L.querySelectorAll(".ava");if(hv[1])hv[1].innerHTML=avatar(H.look,"happy",Math.min(210,W*0.5));
+  op.classList.remove("shake");void op.offsetWidth;op.classList.add("shake");flash=1;shakeT=0.6;confetti(160);
+  at(300,()=>opVoice("junkita"))});
+ // 6：ロゴ
+ at(19000,()=>{clear();scene=6;flash=1;confetti(120);
+  el(`<div class="cap on" style="top:24%;font-size:12px;letter-spacing:.4em;opacity:.8">STREAMER LIFE SIMULATION</div>`);
+  el(`<div class="cap on logo2" style="top:29%">BUZZ<br>&amp; BURN</div>`);
+  at(500,()=>cap("配信者成り上がり十年記","60%",17));
+  at(1400,()=>{const t=cap("TAP TO START","78%",15);t.style.animation="opBlink 1.4s infinite";op.querySelector(".skip").style.display="none"})});
+
+ /* 背景の描画 */
+ let last=performance.now();
+ const loop=now=>{if(ended)return;const dt=Math.min(0.05,(now-last)/1000);last=now;const t=(now-start)/1000;
+  ctx.clearRect(0,0,W,Hh);
+  if(scene===0){ctx.fillStyle="#000";ctx.fillRect(0,0,W,Hh)}
+  if(scene===1){const g=ctx.createLinearGradient(0,0,0,Hh);g.addColorStop(0,"#05030f");g.addColorStop(1,"#1a0f30");ctx.fillStyle=g;ctx.fillRect(0,0,W,Hh);
+   for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,.6)";ctx.fillRect((i*97)%W,(i*53)%(Hh*0.4),1.5,1.5)}
+   for(let i=0;i<4;i++){const a=-Math.PI/2+Math.sin(t*0.9+i*1.7)*0.6,x=W*(0.2+i*0.2),y=Hh*0.58;ctx.save();ctx.translate(x,y);ctx.rotate(a+Math.PI/2);const lg=ctx.createLinearGradient(0,0,0,-Hh);lg.addColorStop(0,"rgba(200,220,255,.35)");lg.addColorStop(1,"rgba(200,220,255,0)");ctx.fillStyle=lg;ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(-60,-Hh);ctx.lineTo(60,-Hh);ctx.lineTo(6,0);ctx.fill();ctx.restore()}
+   ctx.fillStyle="#cfd6ea";ctx.beginPath();ctx.ellipse(W/2,Hh*0.6,W*0.62,Hh*0.14,0,Math.PI,0);ctx.fill();
+   ctx.fillStyle="#9aa3bf";for(let i=-6;i<=6;i++){ctx.beginPath();ctx.ellipse(W/2,Hh*0.6,Math.abs(W*0.62*Math.cos(i/14*Math.PI)),Hh*0.14,0,Math.PI,0);ctx.strokeStyle="rgba(80,90,120,.35)";ctx.stroke()}
+   ctx.fillStyle="#141022";ctx.fillRect(0,Hh*0.6,W,Hh*0.4);for(let i=0;i<40;i++){ctx.fillStyle=`rgba(255,210,63,${0.4+0.4*Math.sin(t*3+i)})`;ctx.fillRect(W*0.05+i*W*0.023,Hh*0.62,3,3)}}
+  if(scene===2||scene===3||scene===4||scene===5||scene===6){const g=ctx.createLinearGradient(0,0,0,Hh);g.addColorStop(0,scene===5?"#0a0612":"#1a0a30");g.addColorStop(1,"#05030a");ctx.fillStyle=g;ctx.fillRect(0,0,W,Hh);
+   // 天井の照明
+   for(let i=0;i<6;i++){const x=W*(i+0.5)/6,sw=Math.sin(t*1.3+i)*0.4;ctx.save();ctx.translate(x,0);ctx.rotate(sw);const lg=ctx.createLinearGradient(0,0,0,Hh);const col=["255,46,136","45,226,230","255,210,63","155,92,255"][i%4];lg.addColorStop(0,`rgba(${col},${scene===5?0.06:0.28})`);lg.addColorStop(1,`rgba(${col},0)`);ctx.fillStyle=lg;ctx.beginPath();ctx.moveTo(-4,0);ctx.lineTo(-W*0.18,Hh);ctx.lineTo(W*0.18,Hh);ctx.lineTo(4,0);ctx.fill();ctx.restore()}
+   // スクリーン
+   if(scene!==5){ctx.fillStyle="rgba(255,255,255,.06)";rrect(ctx,W*0.15,Hh*0.05,W*0.7,Hh*0.16,8);ctx.fill()}
+   // 観客
+   const cy0=Hh*0.6;for(const c of crowd){const y=cy0+c.y*Hh*0.42,sz=1.5+c.y*3,wv=Math.sin(t*(scene===6?9:6)+c.p)*(4+c.y*8);ctx.globalAlpha=scene===5?0.25:0.55+0.4*Math.sin(t*4+c.p);ctx.fillStyle=c.c;ctx.fillRect(c.x*W+wv,y-Math.abs(wv)*0.6,sz,sz*3)}ctx.globalAlpha=1;
+   if(scene===5){const sx=W*0.62,lg=ctx.createRadialGradient(sx,Hh*0.8,10,sx,Hh*0.8,W*0.45);lg.addColorStop(0,"rgba(255,240,200,.35)");lg.addColorStop(1,"rgba(255,240,200,0)");ctx.fillStyle=lg;ctx.fillRect(0,0,W,Hh);ctx.fillStyle="rgba(255,240,200,.09)";ctx.beginPath();ctx.moveTo(sx-10,0);ctx.lineTo(sx-W*0.28,Hh);ctx.lineTo(sx+W*0.28,Hh);ctx.lineTo(sx+10,0);ctx.fill()}}
+  // 紙吹雪
+  parts.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.r+=p.vr*dt;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);ctx.restore()});parts=parts.filter(p=>p.y<Hh+20);
+  if(flash>0){ctx.fillStyle=`rgba(255,255,255,${flash*0.8})`;ctx.fillRect(0,0,W,Hh);flash=Math.max(0,flash-dt*3)}
+  requestAnimationFrame(loop)};
+ requestAnimationFrame(loop);
+}
+
+/* ---- タイトル：初回はTAP TO START→ムービー、以後はボタンから ---- */
+const _titleOp=title;
+title=function(){_titleOp.apply(this,arguments);
+ // 似たキャラが並ばないよう、主催者・巨漢・VTuberの3人に
+ const row=document.querySelector("#app .row");if(row){const vt=ROSTER.find(p=>p.cat==="VTuber"&&p.look&&p.look.gender==="f"&&p.look.hair!=="pony"&&!/^#(ec|ff|f[0-9a-f])/i.test(p.look.hairColor||""))||ROSTER.find(p=>p.cat==="VTuber");const big=rosterById("kyo");
+  row.innerHTML=`${big?avatar(big.look,"happy",92):""}${avatar(HOST.look,"happy",112)}${vt?avatar(vt.look,"happy",92):""}`}
+ const g=document.querySelector("#app .glass");if(g&&!g.querySelector(".opbtn"))g.insertAdjacentHTML("beforeend",`<button class="btn opbtn" style="margin-top:8px" onclick="auInit();playOpening(()=>title())">🎬 オープニングを見る</button>`);
+ let seen=false;try{seen=!!localStorage.getItem(OP_KEY)}catch(e){}
+ if(!seen&&!document.querySelector(".opsplash")){const s=document.createElement("div");s.className="opsplash";s.innerHTML=`<div class="logo" style="font-size:40px;line-height:1.05;text-align:center">BUZZ<br>&amp; BURN</div><div class="t">TAP TO START</div><div class="small" style="opacity:.6">音が出ます</div>`;document.body.appendChild(s);
+  s.onclick=()=>{s.remove();try{auInit()}catch(e){}playOpening(()=>title())}}};
+
 
 S=null;render();
 </script>
