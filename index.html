@@ -6136,6 +6136,377 @@ gRhythm=variantize("rhythm",gRhythm,[gPitchKeep,gCall]);
 gGhost=variantize("ghost",gGhost,[gDaruma,gOfuda]);
 
 /* =========================================================
+   ミニゲーム第2弾：今までミニゲームがなかった配信にも
+   雑談・企画・耐久・ASMR・ゲーセン・キャンプ・散歩/旅行・外ロケ
+   ========================================================= */
+const G4={
+ end(M,stop,s,label,done){stop();M.close(clamp(s,0,1),label,done)},
+ bubble(ctx,x,y,w,h,col,txtc,t,size){ctx.fillStyle=col;rrect(ctx,x-w/2,y-h/2,w,h,h/2);ctx.fill();txt(ctx,t,x,y,size||14,txtc||"#14101c")},
+ face(ctx,x,y,r,open){ctx.fillStyle=(S.look&&S.look.skin)||"#e8c0a0";ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.fillStyle=(S.look&&S.look.hairColor)||"#222";ctx.beginPath();ctx.arc(x,y-r*0.15,r*1.02,Math.PI*1.05,Math.PI*1.95);ctx.fill();
+  ctx.fillStyle="#14101c";const eh=Math.max(0.6,r*0.16*open);ctx.beginPath();ctx.ellipse(x-r*0.35,y,r*0.13,eh,0,0,7);ctx.ellipse(x+r*0.35,y,r*0.13,eh,0,0,7);ctx.fill()}
+};
+
+/* ---------- 雑談：コメント拾い ---------- */
+function gPickup(done){
+ const M=miniOverlay("COMMENT PICKUP","流れてくるコメントから「拾うべき」ものをタップ！ 荒らしは拾うな");M.cb=done;const {ctx}=M;
+ const GOOD=["初見です！","今日も最高！","質問いいですか？","神回確定","おもろすぎｗｗ","¥500 応援してます","切り抜きから来ました","声好きです","昨日のアレ笑った","おかえり〜","今北産業","作業用に流してます","誕生日なんです！","ナイス！","明日テストです…"];
+ const BAD=["つまらん","帰れ","他の配信者の方が上","住所特定したｗ","宣伝です→http","荒らしに来ました","低評価押しといた","オワコン","晒すぞ","NG"];
+ const DUR=20,lv=S.st.talk;let t=0,cs=[],next=0.3,good=0,bad=0,miss=0,pops=[],combo=0;
+ G3.on(M,{down:(x,y)=>{if(t<1.1)return;const c=cs.find(c=>!c.done&&Math.abs(x-c.x)<c.w/2+6&&Math.abs(y-c.y)<20);if(!c)return;c.done=1;
+  if(c.bad){bad++;combo=0;sfx("bad");pops.push({t:"それ拾っちゃダメ！",x:c.x,y:c.y,a:0,c:"#ff4b5c"})}else{good++;combo++;sfx("tap");pops.push({t:combo>=5?`${combo}連続！`:"拾った！",x:c.x,y:c.y,a:0,c:"#3ddc84"});if(combo%6===0)c3(true)}}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M,el=t-1.1;
+  G3.bg(ctx,M,"#14102a","#0b0a18");ctx.fillStyle="rgba(255,255,255,.04)";for(let i=0;i<5;i++)ctx.fillRect(0,H*(0.2+i*0.15)-18,W,36);
+  if(t>=1.1&&el<DUR){next-=dt;if(next<=0){next=clamp(0.75-el*0.02-lv/500,0.32,0.75);const isBad=Math.random()<0.32,s=pick(isBad?BAD:GOOD);ctx.font="bold 14px sans-serif";const w=ctx.measureText(s).width+26;const lanes=[0,1,2,3,4].filter(l=>!cs.some(c=>c.l===l&&c.x+c.w/2>W-30));if(lanes.length){const l=pick(lanes);cs.push({x:W+w/2,y:H*(0.2+l*0.15),l,w,s,bad:isBad,sp:R(90,140)*(1+el/40)})}}}
+  cs.forEach(c=>{c.x-=c.sp*dt;if(c.done)return;G4.bubble(ctx,c.x,c.y,c.w,30,"#f4f2fa","#14101c",c.s,14);if(c.x<-c.w/2){c.done=1;if(!c.bad){miss++;combo=0}}});
+  cs=cs.filter(c=>c.x>-200&&!(c.done&&c.x<-c.w));
+  G3.timer(ctx,M,1-el/DUR,"#2de2e6");txt(ctx,`拾った ${good}　ミス ${bad}`,W/2,30,15,"#fff");M.score(`${good}件`);
+  pops=G3.pops(ctx,pops,dt);if(ready(ctx,M,t))return;
+  if(el>=DUR)G4.end(M,stop,(good-bad*1.5-miss*0.25)/18,`${good}件拾った`,done)});
+}
+
+/* ---------- 雑談：相づちリズム ---------- */
+function gTempo(done){
+ const M=miniOverlay("相づちリズム","相手の話がリングに重なった瞬間にタップして相づち！");M.cb=done;const {ctx}=M;
+ const AI=["へぇ〜！","なるほど","わかる！","マジで？","それな","うんうん","えっ！？","最高じゃん"];
+ const N=24;let t=0,notes=[],sent=0,next=0.6,hit=0,great=0,miss=0,pops=[],gx=0;
+ const judge=()=>{const n=notes.find(n=>!n.done&&Math.abs(n.x-gx)<46);if(!n){pops.push({t:"…？",x:gx,y:M.H*0.38,a:0,c:"#9ad6ff"});return}n.done=1;const d=Math.abs(n.x-gx);
+  if(d<14){great++;hit++;pops.push({t:pick(AI),x:gx,y:M.H*0.36,a:0,c:"#ffd23f",s:22});sfx("good")}else{hit++;pops.push({t:pick(AI),x:gx,y:M.H*0.36,a:0,c:"#fff"});sfx("tap")}};
+ G3.on(M,{down:()=>{if(t>=1.1)judge()}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;gx=W*0.25;const y=H*0.5;
+  G3.bg(ctx,M,"#1a1030","#0d0a1c");
+  G4.face(ctx,W*0.82,H*0.25,32,1);txt(ctx,"相手",W*0.82,H*0.25+50,12,"#cfc6e6");
+  ctx.strokeStyle="rgba(255,255,255,.15)";ctx.lineWidth=40;ctx.beginPath();ctx.moveTo(gx-30,y);ctx.lineTo(W,y);ctx.stroke();
+  ctx.strokeStyle="#ffd23f";ctx.lineWidth=3;ctx.beginPath();ctx.arc(gx,y,24,0,7);ctx.stroke();
+  if(t>=1.1&&sent<N){next-=dt;if(next<=0){sent++;notes.push({x:W+20,done:0});next=pick([0.45,0.6,0.6,0.9,0.3])}}
+  notes.forEach(n=>{n.x-=W*0.42*dt;if(n.done)return;ctx.fillStyle="#f4f2fa";ctx.beginPath();ctx.arc(n.x,y,18,0,7);ctx.fill();txt(ctx,"話",n.x,y,14,"#14101c");if(n.x<gx-50){n.done=1;miss++;pops.push({t:"聞いてなかった",x:gx,y:H*0.62,a:0,c:"#ff8a5b"})}});
+  notes=notes.filter(n=>n.x>-30);
+  txt(ctx,`GREAT ${great}  /  MISS ${miss}`,W/2,30,15,"#fff");M.score(`${hit}/${N}`);
+  pops=G3.pops(ctx,pops,dt);if(ready(ctx,M,t))return;
+  if(sent>=N&&!notes.some(n=>!n.done))G4.end(M,stop,(hit+great*0.5-miss*0.3)/(N*1.2),`${hit}/${N}回 相づち`,done)});
+}
+
+/* ---------- 企画：企画スロット ---------- */
+function gSlot(done){
+ const M=miniOverlay("企画スロット","タップでリールを1本ずつ止めて企画を作れ！ ★がそろうと神企画");M.cb=done;const {ctx}=M;
+ const RL=[["★","無人島で","深夜の","100均で","ドームで","★","実家で","コンビニで"],["★","大食い","ガチ勝負","料理対決","耐久","★","ドッキリ","クイズ"],["★","目隠し","1万円で","24時間","全裸監督","★","親に電話","逆再生"]];
+ const ROUNDS=3;let t=0,round=0,stopped=[],pos=[0,0,0],spd=[0,0,0],score=0,res=null,rt=0,pops=[],parts=[];
+ const startRound=()=>{stopped=[];res=null;for(let i=0;i<3;i++){pos[i]=R(0,8);spd[i]=R(9,12)*(1+round*0.12)}};
+ G3.on(M,{down:()=>{if(t<1.1||res)return;const k=stopped.length;if(k<3){stopped.push(Math.round(pos[k])%8);pos[k]=Math.round(pos[k]);sfx("tap");
+  if(stopped.length===3){const it=stopped.map((s,i)=>RL[i][s]),stars=it.filter(x=>x==="★").length;const pt=stars===3?3:stars===2?1.6:stars===1?0.8:0.4;score+=pt;
+   const name=it.map(x=>x==="★"?pick(["伝説の","ヤバい","神"]):x).join("");res={t:stars===3?"神企画!!":stars===2?"おもしろそう！":stars===1?"まあアリ":"微妙…",n:name,c:stars>=2?"#ffd23f":"#fff"};if(stars>=2){sfx("buzz");c3(true);burst(parts,M.W/2,M.H*0.45,"#ffd23f",30,240)}rt=0}}}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;if(round===0&&!spd[0])startRound();
+  G3.bg(ctx,M,"#2a0f2a","#0e0716");
+  const rw=Math.min(W*0.28,120),rh=56,y0=H*0.42;
+  for(let i=0;i<3;i++){const x=W/2+(i-1)*(rw+8);if(!stopped[i]&&stopped.length<=i&&t>=1.1)pos[i]+=spd[i]*dt;
+   ctx.fillStyle="#14101c";rrect(ctx,x-rw/2,y0-rh*1.6,rw,rh*3.2,10);ctx.fill();ctx.save();ctx.beginPath();ctx.rect(x-rw/2,y0-rh*1.6,rw,rh*3.2);ctx.clip();
+   for(let k=-2;k<=2;k++){const idx=((Math.floor(pos[i])+k)%8+8)%8,off=(pos[i]%1)*rh,yy=y0+k*rh-off;const s=RL[i][idx];txt(ctx,s,x,yy,s==="★"?30:15,s==="★"?"#ffd23f":"#fff")}
+   ctx.restore();ctx.strokeStyle=stopped.length>i?"#3ddc84":"#ffd23f";ctx.lineWidth=3;ctx.strokeRect(x-rw/2,y0-rh/2,rw,rh)}
+  txt(ctx,`企画 ${Math.min(round+1,ROUNDS)}/${ROUNDS}`,W/2,30,16,"#fff");if(!res&&t>=1.1)txt(ctx,"タップで止める",W/2,H*0.72,15,"#cfc6e6");
+  if(res){rt+=dt;txt(ctx,res.t,W/2,H*0.2,28,res.c);txt(ctx,`「${res.n}」`,W/2,H*0.74,15,"#fff");if(rt>1.6){round++;if(round>=ROUNDS)return G4.end(M,stop,score/6,`企画力 ${score.toFixed(1)}`,done);startRound()}}
+  M.score(`${score.toFixed(1)}pt`);parts=drawParts(ctx,parts,dt,200);pops=G3.pops(ctx,pops,dt);ready(ctx,M,t)});
+}
+
+/* ---------- 企画：運命のルーレット ---------- */
+function gWheel(done){
+ const M=miniOverlay("運命のルーレット","タップでブレーキ！ 止まった目で企画が決まる。大当たりを狙え");M.cb=done;const {ctx}=M;
+ const SEG=[{t:"大当たり",c:"#ffd23f",v:3},{t:"罰ゲーム",c:"#ff4b5c",v:-1},{t:"当たり",c:"#3ddc84",v:1.5},{t:"ふつう",c:"#9b5cff",v:0.8},{t:"当たり",c:"#3ddc84",v:1.5},{t:"罰ゲーム",c:"#ff4b5c",v:-1},{t:"ふつう",c:"#2de2e6",v:0.8},{t:"当たり",c:"#3ddc84",v:1.5}];
+ const N=4;let t=0,ang=0,vel=0,braking=false,spin=0,score=0,res=null,rt=0,parts=[];
+ const go=()=>{vel=R(10,14);braking=false;res=null};
+ G3.on(M,{down:()=>{if(t<1.1||res||braking||vel<=0)return;braking=true;sfx("tap")}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;if(!vel&&!res&&spin===0&&t>=1.1)go();
+  G3.bg(ctx,M,"#1a1030","#0b0816");
+  if(vel>0){ang+=vel*dt;if(braking){vel=Math.max(0,vel-dt*R(5.5,7));if(vel===0){const a=((-Math.PI/2-ang)%(Math.PI*2)+Math.PI*4)%(Math.PI*2),k=Math.floor(a/(Math.PI*2/SEG.length));const sg=SEG[k];score+=sg.v;res=sg;rt=0;spin++;
+   if(sg.v>=3){sfx("buzz");c3(true);burst(parts,W/2,H*0.45,"#ffd23f",40,260)}else if(sg.v<0){sfx("bad")}else sfx("good")}}}
+  const cx=W/2,cy=H*0.47,r=Math.min(W,H)*0.34;
+  SEG.forEach((s,i)=>{const a0=ang+i*Math.PI*2/SEG.length,a1=a0+Math.PI*2/SEG.length;ctx.fillStyle=s.c;ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a0,a1);ctx.closePath();ctx.fill();ctx.save();ctx.translate(cx,cy);ctx.rotate((a0+a1)/2);txt(ctx,s.t,r*0.62,0,13,"#14101c");ctx.restore()});
+  ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.stroke();ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(cx,cy,12,0,7);ctx.fill();
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.moveTo(cx,cy-r+14);ctx.lineTo(cx-12,cy-r-16);ctx.lineTo(cx+12,cy-r-16);ctx.fill();
+  txt(ctx,`SPIN ${Math.min(spin+1,N)}/${N}`,W/2,30,16,"#fff");if(vel>0&&!braking)txt(ctx,"タップでブレーキ！",W/2,H*0.88,16,"#ffd23f");
+  if(res){rt+=dt;txt(ctx,res.t+"！",W/2,H*0.88,26,res.c);if(rt>1.3){if(spin>=N)return G4.end(M,stop,(score+2)/9,`${spin}回転 ${score.toFixed(1)}pt`,done);go()}}
+  M.score(`${score.toFixed(1)}pt`);parts=drawParts(ctx,parts,dt,200);ready(ctx,M,t)});
+}
+
+/* ---------- 耐久：眠気との戦い ---------- */
+function gSleep(done){
+ const M=miniOverlay("眠気との戦い","まぶたが閉じてくる…タップで目を開けろ！ 出てきたコメントもタップで拾う");M.cb=done;const {ctx}=M;
+ const DUR=24;let t=0,lid=0,awake=0,asleep=0,cms=[],next=1.5,got=0,pops=[];
+ G3.on(M,{down:(x,y)=>{if(t<1.1)return;const c=cms.find(c=>Math.abs(x-c.x)<70&&Math.abs(y-c.y)<20);if(c){c.got=1;got++;sfx("good");pops.push({t:"拾った！",x:c.x,y:c.y,a:0,c:"#3ddc84"});return}lid=Math.max(0,lid-0.28);sfx("tap")}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M,el=t-1.1;
+  G3.bg(ctx,M,"#0c0a18","#05040a");txt(ctx,`🕒 ${String(3+Math.floor(el/4)).padStart(2,"0")}:${String(Math.floor((el%4)*15)).padStart(2,"0")}`,W/2,H*0.12,18,"#9ad6ff");
+  if(t>=1.1&&el<DUR){lid=Math.min(1,lid+dt*(0.22+el*0.012));if(lid>0.85)asleep+=dt;else awake+=dt;
+   next-=dt;if(next<=0){next=R(1.2,2.2);cms.push({x:R(70,W-70),y:R(H*0.2,H*0.7),s:pick(["起きてる？","寝るな！","あと少し！","耐久がんばれ","¥200 コーヒー代"]),life:2})}}
+  // 部屋とまぶた
+  G4.face(ctx,W/2,H*0.45,60,1-lid);
+  cms.forEach(c=>{c.life-=dt;if(!c.got)G4.bubble(ctx,c.x,c.y,140,30,"#f4f2fa","#14101c",c.s,13)});cms=cms.filter(c=>c.life>0&&!c.got);
+  ctx.fillStyle="#000";const h=H/2*lid;ctx.fillRect(0,0,W,h);ctx.fillRect(0,H-h,W,h);
+  if(lid>0.85)txt(ctx,"Zzz… 寝落ち寸前！ 連打！",W/2,H/2,22,"#ff4b5c");
+  G3.timer(ctx,M,1-el/DUR,"#9b5cff");M.score(`起きてた ${Math.round(awake/(awake+asleep+0.001)*100)}%`);
+  pops=G3.pops(ctx,pops,dt);if(ready(ctx,M,t))return;
+  if(el>=DUR)G4.end(M,stop,awake/(awake+asleep+0.001)*0.85+got*0.02,`覚醒率 ${Math.round(awake/(awake+asleep+0.001)*100)}%`,done)});
+}
+
+/* ---------- 耐久：高評価連打 ---------- */
+function gMash(done){
+ const M=miniOverlay("高評価耐久ラッシュ","目標回数まで連打！ 3セット。息切れゲージに注意");M.cb=done;const {ctx}=M;
+ const SETS=3;let t=0,set=0,cnt=0,tm=5,gaspy=0,state="go",rt=0,total=0,ok=0,parts=[];const tgt=()=>[28,34,40][set];
+ G3.on(M,{down:()=>{if(t<1.1||state!=="go")return;if(gaspy>=1){sfx("bad");return}cnt++;gaspy+=0.035;burst(parts,M.W/2+R(-40,40),M.H*0.5,"#ff2e88",3,160);if(cnt%5===0)sfx("tap")}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;
+  G3.bg(ctx,M,"#2a0a1a","#0d0510");
+  if(t>=1.1&&state==="go"){tm-=dt;gaspy=Math.max(0,gaspy-dt*0.22);if(gaspy>=1)gaspy=1.2;if(tm<=0){state="res";rt=0;total+=cnt;const g=cnt>=tgt();if(g){ok++;sfx("buzz");c3(true)}else sfx("bad")}}
+  if(gaspy>1)gaspy=Math.max(0.6,gaspy-dt*0.5);
+  const cx=W/2,cy=H*0.48,pulse=1+Math.sin(t*20)*0.04;ctx.fillStyle="#ff2e88";ctx.beginPath();ctx.arc(cx,cy,70*pulse,0,7);ctx.fill();txt(ctx,"👍",cx,cy,56,"#fff");
+  txt(ctx,`${cnt} / ${tgt()}`,cx,H*0.24,40,cnt>=tgt()?"#3ddc84":"#fff");txt(ctx,`SET ${Math.min(set+1,SETS)}/${SETS}　残り ${Math.max(0,tm).toFixed(1)}秒`,cx,30,15,"#fff");
+  ctx.fillStyle="rgba(255,255,255,.15)";rrect(ctx,W*0.2,H*0.75,W*0.6,12,6);ctx.fill();ctx.fillStyle=gaspy>0.8?"#ff4b5c":"#ffd23f";rrect(ctx,W*0.2,H*0.75,W*0.6*Math.min(1,gaspy),12,6);ctx.fill();txt(ctx,gaspy>=1?"息切れ！ ちょっと待て":"息切れゲージ",W/2,H*0.8,12,"#fff");
+  if(state==="res"){rt+=dt;txt(ctx,cnt>=tgt()?"クリア！":"届かず…",cx,H*0.66,26,cnt>=tgt()?"#3ddc84":"#ff8a5b");if(rt>1.2){set++;if(set>=SETS)return G4.end(M,stop,ok/3*0.75+total/300,`${ok}/3セット達成`,done);cnt=0;tm=5;state="go"}}
+  M.score(`${total+cnt}回`);parts=drawParts(ctx,parts,dt,300);ready(ctx,M,t)});
+}
+
+/* ---------- ASMR：ささやきキープ ---------- */
+function gWhisper(done){
+ const M=miniOverlay("WHISPER","長押しで声が大きく、離すと小さく。緑の帯の中で、ささやき声をキープ");M.cb=done;const {ctx}=M;
+ const DUR=20;let t=0,hold=false,vol=0.2,vv=0,in_=0,tot=0,wave=[],ear=0;
+ G3.on(M,{down:()=>{hold=true},up:()=>{hold=false}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M,el=t-1.1;
+  G3.bg(ctx,M,"#0f1a24","#060a10");
+  const bc=0.32+Math.sin(el*0.6)*0.12,bw=0.1+S.st.charm/1500;
+  if(t>=1.1&&el<DUR){vv+=(hold?1.4:-1.4)*dt;vv*=Math.pow(0.05,dt);vol=clamp(vol+vv*dt,0,1);tot+=dt;if(Math.abs(vol-bc)<bw){in_+=dt;ear=Math.min(1,ear+dt*0.5)}else ear=Math.max(0,ear-dt*0.8)}
+  const top=H*0.15,bot=H*0.8,yy=v=>bot-(bot-top)*v;
+  ctx.fillStyle="rgba(61,220,132,.2)";ctx.fillRect(0,yy(bc+bw),W,yy(bc-bw)-yy(bc+bw));
+  wave.push(vol);wave=wave.slice(-120);ctx.strokeStyle="#9ad6ff";ctx.lineWidth=2;ctx.beginPath();wave.forEach((v,i)=>{const x=W*0.1+i*(W*0.8/120),a=Math.sin(i*0.9+t*20)*v*30;i?ctx.lineTo(x,yy(v)+a):ctx.moveTo(x,yy(v)+a)});ctx.stroke();
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(W*0.9,yy(vol),8,0,7);ctx.fill();
+  txt(ctx,vol>bc+bw?"声が大きすぎ…":vol<bc-bw?"聞こえない…":"いい感じ…💤",W/2,H*0.88,16,vol>bc+bw||vol<bc-bw?"#ff8a5b":"#3ddc84");
+  txt(ctx,"🎧".repeat(1+Math.round(ear*4)),W/2,40,20,"#fff");
+  G3.timer(ctx,M,1-el/DUR,"#3ddc84");M.score(`${tot?Math.round(in_/tot*100):0}%`);if(ready(ctx,M,t))return;
+  if(el>=DUR)G4.end(M,stop,(in_/(tot||1)-0.2)/0.65,`癒し度 ${Math.round(in_/(tot||1)*100)}%`,done)});
+}
+
+/* ---------- ASMR/作業：なぞり描き ---------- */
+function gTrace(done){
+ const M=miniOverlay("なぞり描き作業","点線のお手本を指でなぞれ！ ずれるほど減点");M.cb=done;const {ctx}=M;
+ const SH=[{n:"まる",f:k=>[Math.cos(k*Math.PI*2),Math.sin(k*Math.PI*2)]},{n:"ハート",f:k=>{const a=k*Math.PI*2;return [16*Math.pow(Math.sin(a),3)/17,-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))/17]}},{n:"ほし",f:k=>{const i=Math.floor(k*10),f=k*10-i,p=j=>{const a=-Math.PI/2+j*Math.PI/5,r=j%2?0.42:1;return [Math.cos(a)*r,Math.sin(a)*r]},A=p(i),B=p(i+1);return [A[0]+(B[0]-A[0])*f,A[1]+(B[1]-A[1])*f]}}];
+ let t=0,idx=0,path=[],drawing=false,scores=[],res=null,rt=0;
+ const geo=()=>({cx:M.W/2,cy:M.H*0.48,r:Math.min(M.W,M.H)*0.3});
+ const grade=()=>{const g=geo(),pts=[];for(let i=0;i<120;i++){const [a,b]=SH[idx].f(i/120);pts.push([g.cx+a*g.r,g.cy+b*g.r])}
+  if(path.length<10)return 0;let d=0;path.forEach(p=>{let m=1e9;pts.forEach(q=>{m=Math.min(m,Math.hypot(p[0]-q[0],p[1]-q[1]))});d+=m});d/=path.length;
+  let cov=0;pts.forEach(q=>{if(path.some(p=>Math.hypot(p[0]-q[0],p[1]-q[1])<22))cov++});cov/=pts.length;return clamp((1-d/30)*0.6+cov*0.5,0,1)};
+ G3.on(M,{down:(x,y)=>{if(t<1.1||res)return;drawing=true;path=[[x,y]]},move:(x,y)=>{if(drawing)path.push([x,y])},up:()=>{if(!drawing)return;drawing=false;const s=grade();scores.push(s);res={s};rt=0;sfx(s>0.7?"good":s>0.4?"tap":"bad");if(s>0.8)c3(true)}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M,g=geo();
+  G3.bg(ctx,M,"#f4efe4","#e6ddc8");ctx.setLineDash([6,8]);ctx.strokeStyle="#b8a888";ctx.lineWidth=3;ctx.beginPath();for(let i=0;i<=120;i++){const [a,b]=SH[idx].f(i/120);i?ctx.lineTo(g.cx+a*g.r,g.cy+b*g.r):ctx.moveTo(g.cx+a*g.r,g.cy+b*g.r)}ctx.stroke();ctx.setLineDash([]);
+  ctx.strokeStyle="#ff2e88";ctx.lineWidth=4;ctx.lineCap="round";ctx.beginPath();path.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();
+  txt(ctx,`お題 ${idx+1}/3：${SH[idx].n}`,W/2,30,16,"#5a4a30");
+  if(res){rt+=dt;txt(ctx,res.s>0.8?"完璧！":res.s>0.55?"うまい！":res.s>0.3?"まあまあ":"ガタガタ…",W/2,H*0.88,24,res.s>0.55?"#d1427a":"#7a6a50");if(rt>1.1){idx++;path=[];res=null;if(idx>=3)return G4.end(M,stop,scores.reduce((a,b)=>a+b,0)/3,`精度 ${Math.round(scores.reduce((a,b)=>a+b,0)/3*100)}%`,done)}}
+  else if(t>=1.1)txt(ctx,"指を離さずに一筆で",W/2,H*0.88,14,"#7a6a50");
+  M.score(`${scores.length}/3`);ready(ctx,M,t)});
+}
+
+/* ---------- ゲーセン：クレーンゲーム ---------- */
+function gCrane(done){
+ const M=miniOverlay("UFOキャッチャー","アームが景品の真上に来たらタップ！ 真ん中ほどつかみやすい");M.cb=done;const {ctx}=M;
+ const N=5,PR=["🧸","🐱","🎮","🍫","👑","🦆","🍩","🎧"];let t=0,tries=0,got=[],arm=0,dir=1,state="move",ay=0,held=null,prizes=[],res=null,rt=0,parts=[];
+ const lay=()=>{prizes=[];for(let i=0;i<7;i++)prizes.push({x:M.W*(0.12+i*0.126)+R(-8,8),e:pick(PR),big:Math.random()<0.15})};
+ G3.on(M,{down:()=>{if(t<1.1||state!=="move")return;state="down";sfx("tap")}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;if(!prizes.length){lay();arm=W*0.1}
+  G3.bg(ctx,M,"#ff7ab0","#ffc0d8");ctx.fillStyle="rgba(255,255,255,.35)";ctx.fillRect(W*0.04,H*0.12,W*0.92,H*0.72);ctx.strokeStyle="#fff";ctx.lineWidth=4;ctx.strokeRect(W*0.04,H*0.12,W*0.92,H*0.72);
+  const floor=H*0.78,topY=H*0.16;
+  if(state==="move"&&t>=1.1){arm+=dir*W*0.32*(1+tries*0.08)*dt;if(arm>W*0.9){arm=W*0.9;dir=-1}if(arm<W*0.1){arm=W*0.1;dir=1}}
+  if(state==="down"){ay+=dt*1.6;if(ay>=1){ay=1;state="grab";const p=prizes.filter(p=>!p.gone).sort((a,b)=>Math.abs(a.x-arm)-Math.abs(b.x-arm))[0];if(p&&Math.abs(p.x-arm)<26){const c=1-Math.abs(p.x-arm)/26;held=Math.random()<0.25+c*0.65*(p.big?0.6:1)?p:null;if(held)held.gone=1}rt=0}}
+  if(state==="grab"){rt+=dt;if(rt>0.3){ay-=dt*1.4;if(held&&ay<0.6&&Math.random()<dt*0.5*(held.big?2:1)){held.gone=0;held.x=arm;held=null;sfx("bad")}if(ay<=0){ay=0;state="res";rt=0;tries++;if(held){got.push(held.e);sfx("buzz");c3(true);burst(parts,arm,topY+40,"#ffd23f",24,200);res={t:"GET!!",c:"#14101c"}}else{res={t:"ざんねん…",c:"#7a1d3a"};sfx("bad")}held=null}}}
+  if(state==="res"){rt+=dt;if(rt>1){if(tries>=N)return G4.end(M,stop,got.length/3,`${got.length}個ゲット ${got.join("")}`,done);state="move";res=null}}
+  prizes.forEach(p=>{if(!p.gone)txt(ctx,p.e,p.x,floor-(p.big?20:14),p.big?40:28,"#000")});
+  const ayp=topY+ay*(floor-topY-40);ctx.strokeStyle="#666";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(arm,topY-10);ctx.lineTo(arm,ayp);ctx.stroke();
+  ctx.strokeStyle="#c0c0c8";ctx.lineWidth=5;const op=state==="grab"||held?0.3:0.9;ctx.beginPath();ctx.moveTo(arm,ayp);ctx.lineTo(arm-18*op,ayp+22);ctx.moveTo(arm,ayp);ctx.lineTo(arm+18*op,ayp+22);ctx.stroke();ctx.fillStyle="#888";ctx.beginPath();ctx.arc(arm,ayp,8,0,7);ctx.fill();
+  if(held)txt(ctx,held.e,arm,ayp+30,held.big?36:26,"#000");
+  txt(ctx,`残り ${N-tries}回　GET ${got.join("")}`,W/2,30,15,"#14101c");if(res)txt(ctx,res.t,W/2,H*0.5,30,res.c);
+  M.score(`${got.length}個`);parts=drawParts(ctx,parts,dt,300);ready(ctx,M,t)});
+}
+
+/* ---------- ゲーセン：アンチ叩き ---------- */
+function gWhack(done){
+ const M=miniOverlay("アンチ叩き","穴から出てくるアンチを叩け！ ファン（ハート）は叩いちゃダメ");M.cb=done;const {ctx}=M;
+ const DUR=20;let t=0,holes=[],next=0.4,hit=0,ff=0,pops=[],parts=[];
+ const geo=()=>{const {W,H}=M,s=Math.min(W*0.28,H*0.17);return {s,ox:W/2-s*1.5,oy:H*0.26}};
+ G3.on(M,{down:(x,y)=>{if(t<1.1)return;const g=geo();const i=Math.floor((x-g.ox)/g.s),j=Math.floor((y-g.oy)/g.s);if(i<0||i>2||j<0||j>2)return;const h=holes[j*3+i];if(!h||!h.up)return;
+  if(h.fan){ff++;sfx("bad");pops.push({t:"ファンを叩いた！",x,y,a:0,c:"#ff4b5c"})}else{hit++;sfx("hit");burst(parts,x,y,"#ffd23f",10,180);pops.push({t:pick(["BAN!","ミュート!","通報!"]),x,y,a:0,c:"#ffd23f"});if(hit%8===0)c3(true)}h.up=0}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M,g=geo(),el=t-1.1;if(!holes.length)for(let i=0;i<9;i++)holes.push({up:0,life:0});
+  G3.bg(ctx,M,"#2a1a40","#140c24");
+  if(t>=1.1&&el<DUR){next-=dt;if(next<=0){next=clamp(0.6-el*0.015,0.28,0.6);const free=holes.map((h,i)=>h.up?-1:i).filter(i=>i>=0);if(free.length){const h=holes[pick(free)];h.up=1;h.life=clamp(1.0-el*0.02,0.55,1.0);h.fan=Math.random()<0.25}}}
+  holes.forEach((h,i)=>{const x=g.ox+(i%3+0.5)*g.s,y=g.oy+(Math.floor(i/3)+0.6)*g.s;ctx.fillStyle="#0a0614";ctx.beginPath();ctx.ellipse(x,y+g.s*0.22,g.s*0.38,g.s*0.13,0,0,7);ctx.fill();
+   if(h.up){h.life-=dt;if(h.life<=0)h.up=0;txt(ctx,h.fan?"💖":"😈",x,y-4,g.s*0.5,"#fff");if(!h.fan)txt(ctx,"アンチ",x,y+g.s*0.3,11,"#ff8a8a")}});
+  G3.timer(ctx,M,1-el/DUR,"#ff4b5c");txt(ctx,`BAN ${hit}`,W/2,34,18,"#fff");M.score(`${hit}`);
+  parts=drawParts(ctx,parts,dt,0);pops=G3.pops(ctx,pops,dt);if(ready(ctx,M,t))return;
+  if(el>=DUR)G4.end(M,stop,(hit-ff*2)/26,`${hit}人BAN`,done)});
+}
+
+/* ---------- キャンプ：焚き火キープ ---------- */
+function gFire(done){
+ const M=miniOverlay("焚き火キープ","タップでふーっと空気を送る。火を緑の範囲に保て！ 薪が出たらタップで追加");M.cb=done;const {ctx}=M;
+ const DUR=22;let t=0,fire=0.45,fuel=1,inZ=0,tot=0,logs=[],nl=3,parts=[],pops=[];
+ G3.on(M,{down:(x,y)=>{if(t<1.1)return;const l=logs.find(l=>Math.hypot(x-l.x,y-l.y)<34);if(l){l.got=1;fuel=Math.min(1,fuel+0.45);sfx("good");pops.push({t:"薪を追加",x:l.x,y:l.y,a:0,c:"#ffd23f"});return}fire=Math.min(1.1,fire+0.07*(0.4+fuel));sfx("tap")}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M,el=t-1.1;
+  G3.bg(ctx,M,"#0a0c1e","#05040a");for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,.5)";ctx.fillRect((i*67)%W,(i*41)%(H*0.4),1.5,1.5)}
+  if(t>=1.1&&el<DUR){fire=Math.max(0,fire-dt*(0.09+0.05*(1-fuel)));fuel=Math.max(0,fuel-dt*0.05);tot+=dt;if(fire>0.35&&fire<0.7)inZ+=dt;
+   nl-=dt;if(nl<=0){nl=R(3,5);logs.push({x:R(50,W-50),y:H*R(0.6,0.75),life:3})}}
+  const cx=W/2,cy=H*0.62,f=fire;for(let i=0;i<3;i++){const s=40+f*120-i*25;ctx.fillStyle=["#ff4b2b","#ff9a2b","#ffe26b"][i];ctx.beginPath();ctx.moveTo(cx-s*0.45,cy);ctx.quadraticCurveTo(cx-s*0.3+Math.sin(t*9+i)*6,cy-s*0.8,cx+Math.sin(t*7+i)*8,cy-s*(1+Math.sin(t*11)*0.06));ctx.quadraticCurveTo(cx+s*0.3,cy-s*0.6,cx+s*0.45,cy);ctx.fill()}
+  if(Math.random()<f)parts.push({x:cx+R(-20,20),y:cy-30,vx:R(-20,20),vy:R(-120,-60),life:1,age:0,c:"#ffb03a",s:2});
+  ctx.fillStyle="#5a3a24";ctx.save();ctx.translate(cx,cy+6);ctx.rotate(0.3);ctx.fillRect(-50,-6,100,12);ctx.rotate(-0.6);ctx.fillRect(-50,-6,100,12);ctx.restore();
+  logs.forEach(l=>{l.life-=dt;if(!l.got){ctx.fillStyle="#8a5a2a";rrect(ctx,l.x-26,l.y-8,52,16,6);ctx.fill();txt(ctx,"薪",l.x,l.y-18,12,"#ffd23f")}});logs=logs.filter(l=>l.life>0&&!l.got);
+  const gx=W*0.88,gy=H*0.2,gh=H*0.4;ctx.fillStyle="rgba(255,255,255,.12)";ctx.fillRect(gx-8,gy,16,gh);ctx.fillStyle="rgba(61,220,132,.5)";ctx.fillRect(gx-8,gy+gh*(1-0.7),16,gh*0.35);ctx.fillStyle="#ffd23f";ctx.fillRect(gx-12,gy+gh*(1-Math.min(1,fire))-2,24,4);
+  txt(ctx,fire>0.7?"燃えすぎ！":fire<0.35?"消えそう…":"いい火加減🔥",W/2,H*0.86,16,fire>0.7||fire<0.35?"#ff8a5b":"#3ddc84");
+  G3.timer(ctx,M,1-el/DUR,"#ff9a2b");M.score(`${tot?Math.round(inZ/tot*100):0}%`);
+  parts.forEach(p=>{p.age+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;ctx.globalAlpha=1-p.age;ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,2,2)});ctx.globalAlpha=1;parts=parts.filter(p=>p.age<1);
+  pops=G3.pops(ctx,pops,dt);if(ready(ctx,M,t))return;
+  if(el>=DUR)G4.end(M,stop,(inZ/(tot||1)-0.15)/0.65,`いい火 ${Math.round(inZ/(tot||1)*100)}%`,done)});
+}
+
+/* ---------- キャンプ/外ロケ：釣り ---------- */
+function gFish(done){
+ const M=miniOverlay("FISHING","ウキが沈んで「！」が出たらタップ。巻くときは長押し、糸が赤くなったら離す！");M.cb=done;const {ctx}=M;
+ const N=3,FISH=[["🐟","アジ",1],["🐠","タイ",1.5],["🐡","フグ",1.2],["🦑","イカ",1.3],["🐋","まさかのクジラ",3]];
+ let t=0,n=0,state="wait",wt=R(1.5,3.5),bite=0,dist=0,tens=0,hold=false,caught=[],res=null,rt=0,fish=null,parts=[];
+ G3.on(M,{down:()=>{if(t<1.1)return;if(state==="wait"){res={t:"早すぎ！逃げた",c:"#ff8a5b"};state="res";rt=0;sfx("bad")}else if(state==="bite"){state="reel";dist=1;tens=0.3;fish=Math.random()<0.06?FISH[4]:pick(FISH.slice(0,4));sfx("good")}else if(state==="reel")hold=true},up:()=>{hold=false}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;
+  G3.bg(ctx,M,"#7ec8ff","#2a6aa8");ctx.fillStyle="#1d4f80";ctx.fillRect(0,H*0.45,W,H*0.55);for(let i=0;i<8;i++){ctx.strokeStyle="rgba(255,255,255,.2)";ctx.beginPath();ctx.moveTo(0,H*0.5+i*30+Math.sin(t+i)*4);ctx.lineTo(W,H*0.5+i*30+Math.cos(t+i)*4);ctx.stroke()}
+  const fx=W*0.55,fy=H*0.5;
+  if(t>=1.1){if(state==="wait"){wt-=dt;if(wt<=0){state="bite";bite=clamp(0.9-S.st.plan/300,0.45,0.9)}}
+   else if(state==="bite"){bite-=dt;if(bite<=0){res={t:"逃げられた…",c:"#ff8a5b"};state="res";rt=0;sfx("bad")}}
+   else if(state==="reel"){const pull=fish[2];if(hold){dist-=dt*0.28/pull*1.6;tens+=dt*(0.55*pull)}else{tens-=dt*0.7;dist+=dt*0.06}
+    tens=Math.max(0,tens);if(tens>=1){res={t:"糸が切れた…",c:"#ff4b5c"};state="res";rt=0;sfx("bad")}else if(dist<=0){caught.push(fish);res={t:`${fish[0]} ${fish[1]}ゲット！`,c:"#ffd23f"};state="res";rt=0;sfx("buzz");c3(fish[2]>=1.5);burst(parts,fx,fy,"#fff",24,200)}}}
+  // ウキと糸
+  const by=fy+(state==="bite"?10+Math.sin(t*30)*4:Math.sin(t*3)*2);ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(W*0.1,H*0.12);ctx.quadraticCurveTo(W*0.3,H*0.2,fx,by);ctx.stroke();ctx.fillStyle="#ff4b5c";ctx.beginPath();ctx.arc(fx,by,7,Math.PI,0);ctx.fill();ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(fx,by,7,0,Math.PI);ctx.fill();
+  if(state==="bite")txt(ctx,"！",fx,by-36,40,"#ffd23f");
+  if(state==="reel"){const gx=W*0.15,gw=W*0.7;ctx.fillStyle="rgba(255,255,255,.2)";rrect(ctx,gx,H*0.82,gw,14,7);ctx.fill();ctx.fillStyle=tens>0.75?"#ff4b5c":tens>0.5?"#ffd23f":"#3ddc84";rrect(ctx,gx,H*0.82,gw*Math.min(1,tens),14,7);ctx.fill();txt(ctx,"糸のテンション",W/2,H*0.8,12,"#fff");txt(ctx,`残り ${Math.round(dist*30)}m`,W/2,H*0.9,16,"#fff");txt(ctx,fish[0],fx,by+30,30,"#fff")}
+  if(state==="res"){rt+=dt;txt(ctx,res.t,W/2,H*0.3,24,res.c);if(rt>1.4){n++;if(n>=N)return G4.end(M,stop,caught.reduce((a,f)=>a+f[2],0)/3.6,`${caught.length}匹 ${caught.map(f=>f[0]).join("")}`,done);state="wait";wt=R(1.5,3.5);res=null}}
+  txt(ctx,`${Math.min(n+1,N)}投目　釣果 ${caught.map(f=>f[0]).join("")}`,W/2,30,15,"#fff");M.score(`${caught.length}匹`);parts=drawParts(ctx,parts,dt,200);ready(ctx,M,t)});
+}
+
+/* ---------- 散歩/旅行：シャッターチャンス ---------- */
+function gPhoto(done){
+ const M=miniOverlay("シャッターチャンス","被写体がフレームの真ん中に来た瞬間にタップで撮影！");M.cb=done;const {ctx}=M;
+ const SUB=["🐈","🐦","🗼","🌸","🐕","🎈","🚃","🌈","⛩️","🦌"];const N=8;
+ let t=0,n=0,obj=null,shots=[],flash=0,res=null,rt=0;
+ const nextObj=()=>{obj={e:pick(SUB),x:-40,y:M.H*R(0.35,0.6),sp:R(120,200)*(1+n*0.06),wob:R(0,7),dir:1};if(Math.random()<0.5){obj.x=M.W+40;obj.dir=-1}};
+ G3.on(M,{down:()=>{if(t<1.1||!obj||res)return;const fx=M.W/2,fy=M.H*0.48,d=Math.hypot(obj.x-fx,obj.y-fy);const s=clamp(1-d/90,0,1);shots.push({e:obj.e,s});flash=1;sfx("tap");res={s};rt=0;if(s>0.85)c3(true)}});
+ const stop=loopRAF(dt=>{if(M.dead)return stop();t+=dt;M.begin();const {W,H}=M;if(!obj&&t>=1.1)nextObj();
+  G3.bg(ctx,M,"#a8dcff","#e8f6ff");ctx.fillStyle="#7cc46a";ctx.fillRect(0,H*0.7,W,H*0.3);for(let i=0;i<5;i++){ctx.fillStyle="#5aa04a";ctx.beginPath();ctx.arc((i*W/4+t*-20)%(W+60),H*0.7,40,Math.PI,0);ctx.fill()}
+  if(obj&&!res){obj.x+=obj.dir*obj.sp*dt;obj.y+=Math.sin(t*3+obj.wob)*20*dt;txt(ctx,obj.e,obj.x,obj.y,46,"#000");if((obj.dir>0&&obj.x>W+50)||(obj.dir<0&&obj.x<-50)){shots.push({e:obj.e,s:0});res={s:-1};rt=0}}
+  else if(obj&&res&&res.s>=0)txt(ctx,obj.e,obj.x,obj.y,46,"#000");
+  const fx=W/2,fy=H*0.48,fw=W*0.5,fh=fw*0.75;ctx.strokeStyle="#fff";ctx.lineWidth=3;[[1,1],[-1,1],[1,-1],[-1,-1]].forEach(([a,b])=>{ctx.beginPath();ctx.moveTo(fx+a*fw/2,fy+b*fh/2-b*18);ctx.lineTo(fx+a*fw/2,fy+b*fh/2);ctx.lineTo(fx+a*fw/2-a*18,fy+b*fh/2);ctx.stroke()});ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(fx-8,fy);ctx.lineTo(fx+8,fy);ctx.moveTo(fx,fy-8);ctx.lineTo(fx,fy+8);ctx.stroke();
+  if(res){rt+=dt;const s=res.s;txt(ctx,s<0?"撮り逃した…":s>0.85?"ベストショット！":s>0.5?"いい写真":"ブレた…",W/2,H*0.2,24,s>0.5?"#d1427a":"#555");if(rt>1){n++;res=null;obj=null;if(n>=N){const avg=shots.reduce((a,b)=>a+b.s,0)/N;return G4.end(M,stop,avg*1.15,`${shots.filter(x=>x.s>0.85).length}枚のベストショット`,done)}}}
+  if(flash>0){ctx.fillStyle=`rgba(255,255,255,${flash})`;ctx.fillRect(0,0,W,H);flash=Math.max(0,flash-dt*4)}
+  txt(ctx,`📷 ${Math.min(n+1,N)}/${N}`,W/2,30,15,"#14304a");M.score(`${shots.filter(x=>x.s>0.85).length}枚`);ready(ctx,M,t)});
+}
+
+/* ---------- ジャンルへの割り当て ---------- */
+const MINI4={
+ talkg:{fns:[gPickup,gTempo],stat:"talk"},plang:{fns:[gSlot,gWheel],stat:"plan"},endg:{fns:[gSleep,gMash],stat:"charm"},
+ asmrg:{fns:[gWhisper,gTrace],stat:"charm"},arc:{fns:[gCrane,gWhack],stat:"game"},campg:{fns:[gFire,gFish],stat:"plan"},
+ photo:{fns:[gPhoto,gFish],stat:"charm"},locag:{fns:[gFish,gCrane,gEat],stat:"talk"}
+};
+Object.entries({talk:"talkg",plan:"plang",endure:"endg",asmr:"asmrg",arcade:"arc",camp:"campg",walk:"photo",travel:"photo",loca:"locag",haunted:"ghost",gourmet:"cook"}).forEach(([g,m])=>{if(GENRES[g]&&!GENRES[g].mini)GENRES[g].mini=m});
+const _MINI4_last={};
+function runMini4(kind,cb){const d=MINI4[kind];let i=RI(0,d.fns.length-1);if(i===_MINI4_last[kind]&&d.fns.length>1)i=(i+1)%d.fns.length;_MINI4_last[kind]=i;d.fns[i](cb)}
+const _nextEvent4=nextEvent;
+nextEvent=function(){
+ if(L&&L.i>=L.evs.length&&L.g&&MINI4[L.g.mini]){const k=L.g.mini,mst=MINI4[k].stat;
+  if(S.autoMini){const sc=autoMiniScore();gainXP(mst,sc*0.4);pushChat("SYSTEM","（ミニゲームはおまかせで進行）");setEx(sc>=0.6?"happy":"normal");return setTimeout(()=>finishStream(sc),900)}
+  setEx("normal");return setTimeout(()=>runMini4(k,sc=>{setEx(sc>=0.6?"happy":"sad");gainXP(mst,sc*0.9);finishStream(sc)}),300)}
+ return _nextEvent4.apply(this,arguments)};
+
+/* =========================================================
+   配信のバリエーション：ハプニング大幅追加・ジャンル別ハプニング・
+   「今日の配信テーマ」（配信の型）
+   ========================================================= */
+// ---- 共通ハプニング（どの配信でも起きる） ----
+INCIDENTS.push(
+ {q:"🐢 回線が重くて映像がカクカク…",o:[{t:"画質を下げて続ける",v:1.0},{t:"カクカクをネタに実況",v:1.16,req:["talk",22],fv:0.94},{t:"ルーターを再起動しに行く",v:0.9}]},
+ {q:"🔔 ピンポーン！ 宅配便が来た",o:[{t:"一旦ミュートで受け取る",v:1.0},{t:"開封の儀をそのまま配信",v:1.18,req:["charm",18],fv:1.0,fans:2},{t:"居留守を使う",v:1.02}]},
+ {q:"🧱 隣の部屋から壁ドンされた",o:[{t:"小声モードに切り替える",v:1.03},{t:"壁ドンに合わせて芸をする",v:1.15,req:["talk",28],fv:0.95,flame:2},{t:"壁ドンし返す",v:1.1,flame:6,anti:2}]},
+ {q:"🌏 スマホから地震速報が鳴った！",o:[{t:"配信を止めて安全確認を呼びかける",v:1.02,fans:4},{t:"落ち着いて状況を共有する",v:1.08,req:["talk",20],fv:1.0,fans:2},{t:"気にせず続ける",v:0.95,flame:4}]},
+ {q:"🔇 マイクがミュートのまま10分喋ってた…",o:[{t:"素直に謝ってもう一回",v:1.0},{t:"「今の10分が一番面白かった」と言い張る",v:1.17,req:["talk",25],fv:0.96},{t:"口パクで続ける",v:1.12,req:["charm",22],fv:0.97}]},
+ {q:"📈 切り抜きがバズって同接が急増中！",o:[{t:"新規さんに自己紹介",v:1.22,fans:5},{t:"いつも通りを見せる",v:1.15},{t:"調子に乗ってイキる",v:1.25,flame:5,anti:3}]},
+ {q:"📩 {star}からDM「今から凸っていい？」",star:true,o:[{t:"もちろんOK！",v:1.25,req:["network",10],fv:1.05,fans:3},{t:"「今日は無理」と断る",v:1.0},{t:"DMを配信で読み上げる",v:1.14,flame:3}]},
+ {q:"🍜 出前が届いた！",o:[{t:"食べながら雑談",v:1.08},{t:"全力で食レポ",v:1.17,req:["talk",20],fv:1.0,fans:2},{t:"視聴者に見せびらかす",v:1.06,anti:1}]},
+ {q:"🕷 部屋に虫が出た！！",o:[{t:"冷静に退治する",v:1.04},{t:"絶叫しながら逃げ回る",v:1.2,req:["charm",15],fv:1.08},{t:"虫に名前をつけて飼う",v:1.12,req:["talk",22],fv:1.0}]},
+ {q:"😱 昔の黒歴史動画がコメントに貼られた",o:[{t:"みんなで一緒に見る",v:1.2,req:["charm",25],fv:1.02,fans:2},{t:"即削除してもらう",v:0.98},{t:"「あれは別人」と言い張る",v:1.1,flame:2}]},
+ {q:"💸 ¥50,000の赤スパが飛んできた！",sc:50000,o:[{t:"全力で感謝して名前を叫ぶ",v:1.15,fans:3},{t:"「無理しないでね」と声をかける",v:1.12,fans:4},{t:"「もう一回！」と煽る",v:1.18,anti:3,flame:3}]},
+ {q:"🌐 海外ニキが大量に来た！ \"KAWAII\" \"LOL\"",o:[{t:"カタコト英語で全力対応",v:1.2,req:["talk",24],fv:1.04,fans:3},{t:"翻訳ツールで真面目に返す",v:1.1},{t:"日本語で押し通す",v:1.03}]},
+ {q:"✏️ 配信タイトルの誤字を指摘された",o:[{t:"直してお礼を言う",v:1.02},{t:"誤字のままの方がバズると言い張る",v:1.12,req:["talk",18],fv:0.98},{t:"誤字を新しいあだ名にする",v:1.1,req:["plan",18],fv:1.0}]},
+ {q:"⚔ 同じ時間にライバル配信者が枠を立てた",o:[{t:"気にせず自分の配信を楽しむ",v:1.05},{t:"「あっちも見てあげて」と言う",v:1.08,fans:4},{t:"「こっちの方が面白い」と宣言",v:1.16,flame:4,anti:2}]},
+ {q:"🎂「今日誕生日なので祝ってください！」",o:[{t:"全員でおめでとうコメント",v:1.12,fans:3},{t:"即興でバースデーソング",v:1.2,req:["charm",22],fv:1.02,fans:4},{t:"「俺も誕生日」と嘘をつく",v:1.04,flame:1}]},
+ {q:"📞 母親から電話がかかってきた",o:[{t:"後でかけ直す",v:1.0},{t:"スピーカーで配信に出す",v:1.22,req:["charm",20],fv:1.02,fans:3},{t:"出て普通に話してしまう",v:1.1,flame:1}]},
+ {q:"🥵 エアコンが壊れた…部屋が灼熱",o:[{t:"うちわで耐える",v:1.04},{t:"「灼熱耐久」に企画変更",v:1.18,req:["plan",22],fv:1.0},{t:"今日は早めに切り上げる",v:0.92}]},
+ {q:"👂 背後で謎の物音がした…",o:[{t:"確認しに行く",v:1.1},{t:"視聴者と一緒に怖がる",v:1.15,req:["charm",16],fv:1.05},{t:"聞こえなかったことにする",v:1.0}]},
+ {q:"⏰ 予定の終了時間を2時間過ぎてた",o:[{t:"ここで締める",v:1.0},{t:"延長戦に突入！",v:1.16,req:["charm",20],fv:1.04,fans:2},{t:"「まだ始まったばかり」と言う",v:1.08}]},
+ {q:"🎁 視聴者からのプレゼントが届いた",o:[{t:"配信で開封してお礼",v:1.14,fans:4},{t:"後でこっそり開ける",v:1.0},{t:"中身にツッコミまくる",v:1.16,req:["talk",22],fv:1.0}]},
+ {q:"🙊 うっかり本名を言いかけた…！",o:[{t:"笑ってごまかす",v:1.04},{t:"別の言葉にすり替える",v:1.1,req:["talk",24],fv:0.95,flame:3},{t:"「今のは聞かなかったことに」",v:1.06,flame:2}]},
+ {q:"🎮 コメント欄で謎のチャレンジが始まった",o:[{t:"乗っかって一緒にやる",v:1.18,req:["plan",18],fv:1.0,fans:2},{t:"そっと見守る",v:1.05},{t:"「そういうのやめて」と止める",v:0.98,anti:1}]},
+ {q:"😪 あくびが止まらない…",o:[{t:"コーヒーを淹れに行く",v:1.0},{t:"眠気と戦う実況をする",v:1.12,req:["talk",15],fv:1.0},{t:"視聴者に起こしてもらう",v:1.1,fans:2}]},
+ {q:"🗣 「声がいつもと違う？」と言われた",o:[{t:"風邪気味だと正直に言う",v:1.06,fans:3},{t:"新しい声を開発したと言い張る",v:1.12,req:["talk",20],fv:1.0},{t:"いつも通りだと押し通す",v:1.0}]}
+);
+
+// ---- ジャンル別ハプニング ----
+const GINC={
+ fps:[{q:"🎯 チーターっぽい敵に倒された",o:[{t:"冷静に通報して切り替え",v:1.04},{t:"キルカメラをスロー解説",v:1.18,req:["game",25],fv:1.0},{t:"ブチギレる",v:1.14,flame:6,anti:2}]},
+  {q:"🎧 野良の味方がずっと歌ってる",o:[{t:"一緒に歌う",v:1.2,req:["charm",20],fv:1.05},{t:"ミュートする",v:1.0},{t:"歌の採点をする",v:1.14,req:["talk",20],fv:1.0}]},
+  {q:"🔥 1人で4キル！ 同接が沸いてる",o:[{t:"クールに次へ",v:1.12},{t:"全力で叫ぶ",v:1.2,fans:3},{t:"「まぐれ」と謙遜",v:1.1}]}],
+ horror:[{q:"🪑 ジャンプスケアで椅子から転げ落ちた",o:[{t:"カメラに映った自分を見て笑う",v:1.22,fans:3},{t:"何事もなかったように座る",v:1.08},{t:"ゲームのせいにして怒る",v:1.1,flame:2}]},
+  {q:"🔦 あまりに怖くて手が止まった",o:[{t:"視聴者に励ましてもらう",v:1.12,fans:2},{t:"目をつぶって進む",v:1.15,req:["game",20],fv:1.02},{t:"一旦やめて雑談に逃げる",v:0.98}]}],
+ sing:[{q:"🎤 高音で声が裏返った！",o:[{t:"もう一回チャレンジ",v:1.14,req:["charm",22],fv:1.02},{t:"裏返りをネタにする",v:1.1},{t:"聞かなかったことにして続ける",v:1.0}]},
+  {q:"🔇 著作権で一部の音が消えた",o:[{t:"アカペラで続ける",v:1.2,req:["charm",28],fv:1.0,fans:3},{t:"別の曲に切り替える",v:1.02},{t:"運営に文句を言う",v:1.04,flame:2}]}],
+ cook:[{q:"🔥 フライパンから火柱が上がった！",o:[{t:"落ち着いて蓋をする",v:1.1,fans:2},{t:"「これがフランベ」と言い張る",v:1.18,req:["talk",22],fv:1.0},{t:"叫びながら逃げる",v:1.15,flame:2}]},
+  {q:"🧂 塩と砂糖を間違えた…",o:[{t:"そのまま食べて感想を言う",v:1.18,req:["charm",18],fv:1.04},{t:"作り直す",v:1.0},{t:"「新しい味」として売り出す",v:1.12}]}],
+ soccer:[{q:"⚽ ロスタイムに同点ゴールを決められた",o:[{t:"天を仰いで悔しがる",v:1.14},{t:"相手を称える",v:1.1,fans:3},{t:"コントローラーを投げかける",v:1.12,flame:4}]}],
+ baseball:[{q:"⚾ 9回裏、満塁で打席が回ってきた",o:[{t:"視聴者と一緒に祈る",v:1.14,fans:2},{t:"ホームラン予告する",v:1.2,req:["game",22],fv:0.95},{t:"静かに集中する",v:1.08}]}],
+ talk:[{q:"💬 相談コメントがかなり重い内容だった",o:[{t:"真剣に向き合って答える",v:1.14,req:["talk",25],fv:1.0,fans:4},{t:"専門家への相談をすすめる",v:1.08,fans:2},{t:"笑いに変えようとする",v:1.0,flame:5}]},
+  {q:"🗳 コメントで「今日の話題」アンケートが始まった",o:[{t:"恋バナに決定",v:1.12},{t:"人生相談に決定",v:1.1,fans:2},{t:"すべらない話に決定",v:1.18,req:["talk",28],fv:0.95}]}],
+ plan:[{q:"📦 企画に使う道具が届いてない…",o:[{t:"代用品で強行",v:1.15,req:["plan",22],fv:0.98},{t:"企画を差し替える",v:1.04},{t:"届くまで雑談でつなぐ",v:1.06}]}],
+ asmr:[{q:"🚑 外で救急車のサイレンが鳴り響いた",o:[{t:"そっと一時停止",v:1.0},{t:"サイレンも環境音として楽しむ",v:1.08},{t:"小声で実況する",v:1.12,req:["charm",18],fv:1.0}]}],
+ endure:[{q:"🍙 家族が差し入れを持ってきた",o:[{t:"ありがたくいただく",v:1.08},{t:"家族も配信に巻き込む",v:1.18,req:["charm",20],fv:1.02,fans:2},{t:"「耐久中だから」と断る",v:1.02}]}]
+};
+
+// ---- 今日の配信テーマ（配信の型） ----
+const TWISTS=[
+ {id:"endless",n:"🔥 高評価1000いくまで終われない",d:"いつもより長丁場。盛り上がりやすい",w:1,f:L=>{L.mult*=1.06;return 2}},
+ {id:"poll",n:"🗳 視聴者アンケートで内容決定",d:"最初にリスナーが配信の方向性を決める",w:1,ev:{inc:{q:"🗳 アンケート結果が出た！ 今日の方針は…？",o:[{t:"「ガチでやれ」に従う",v:1.16,req:["game",18],fv:1.0},{t:"「雑談多め」に従う",v:1.12,req:["talk",15],fv:1.02},{t:"「罰ゲームあり」に従う",v:1.2,flame:2,fans:2}]},q:"🗳 アンケート結果が出た！",sc:0,user:"アンケート"}},
+ {id:"midnight",n:"🌙 深夜テンション配信",d:"ノリが良くなるけど、口がすべりやすい",w:1,f:L=>{L.mult*=1.05;return 1},ev:{inc:{q:"🌙 深夜テンションで口がすべりそう…",o:[{t:"ギリギリを攻める",v:1.22,flame:6,anti:2},{t:"冷静を装う",v:1.04},{t:"深夜ポエムを詠む",v:1.15,req:["charm",20],fv:1.0}]},q:"🌙 深夜テンション！",sc:0,user:"深夜"}},
+ {id:"guerrilla",n:"⚡ ゲリラ配信",d:"告知なし。最初は少ないけど、気づいた人が集まってくる",w:1,f:L=>{L.base*=0.82;L.mult*=1.14;return 0}},
+ {id:"first",n:"🔰 初見さん歓迎DAY",d:"新規のファンが増えやすい",w:1,f:L=>{L.fans+=3;return 1},ev:{q:"初見です！ 何の配信ですか？",cat:"greet",user:"初見さん",sc:0}},
+ {id:"raid",n:"📣 大物からのレイドが来るかも？",d:"運が良ければ視聴者がなだれ込む",w:0.8,ev:()=>Math.random()<0.55?{inc:{q:`📣 ${pick(partners()).name}からレイド！ 視聴者がなだれ込んできた！`,o:[{t:"全力でお出迎え",v:1.3,fans:5},{t:"レイド元を褒めちぎる",v:1.24,req:["talk",18],fv:1.1,fans:3},{t:"緊張で固まる",v:1.12}]},q:"📣 レイドが来た！",sc:0,user:"レイド"}:null},
+ {id:"bet",n:"🎲 罰ゲーム賭け配信",d:"最後のミニゲームで負けると罰ゲーム。勝っても負けても撮れ高",w:1},
+ {id:"anniv",n:"🎉 記念配信",d:"スパチャが飛びやすい特別な日",w:0.6,cond:()=>S.subs>=1000,f:L=>{L.mult*=1.1;return 0},ev:{inc:{q:"🎉 記念配信おめでとう！ スパチャの嵐！",o:[{t:"一人ずつ名前を読む",v:1.16,fans:4},{t:"感極まって泣く",v:1.2,req:["charm",22],fv:1.08,fans:3},{t:"次の目標を宣言する",v:1.14}]},q:"🎉 記念配信！",sc:20000,user:"リスナー一同"}}
+];
+function pickIncFor(gk,exclude){const g=GENRES[gk]||{};const key=GINC[gk]?gk:(g.trend==="game"&&GINC.fps&&gk==="crime"?"fps":null);
+ const pool=(key?GINC[key].concat(GINC[key]):[]).concat(INCIDENTS.filter(x=>(!x.pet||hasPet(x.pet))&&!exclude.has(x.q)));return pick(pool)}
+function incEvent(inc){const star=pick(partners()).name;return {inc,q:inc.q.replace("{star}",star),sc:inc.sc||0,user:inc.star?star:"ハプニング"}}
+
+const _makeEvents0V=makeEvents0;
+makeEvents0=function(gk){const evs=_makeEvents0V.apply(this,arguments);if(!S)return evs;
+ const used=new Set(evs.filter(e=>e.inc).map(e=>e.inc.q));
+ // ハプニングをもう1つ（または初めての1つ）
+ if(Math.random()<0.45){const inc=pickIncFor(gk,used);if(inc&&!used.has(inc.q)){evs.splice(RI(1,Math.max(1,evs.length)),0,incEvent(inc));used.add(inc.q)}}
+ // テーマ
+ const tw=window.__twistPending;
+ if(tw){if(tw.ev){const e=typeof tw.ev==="function"?tw.ev():JSON.parse(JSON.stringify(tw.ev));if(e)evs.splice(Math.min(1,evs.length),0,e)}
+  if(tw.id==="endless"||tw.id==="midnight"||tw.id==="first"){const more=_makeEvents0V("talk").filter(e=>!e.inc).slice(0,tw.id==="endless"?2:1);evs.push(...more)}}
+ return evs};
+
+const _startStream0V=startStream0;
+startStream0=function(gk){
+ const g=GENRES[gk];window.__twistPending=null;
+ if(S&&!["collab","totsu"].includes(gk)&&!g.hidden&&S.day>3&&Math.random()<0.38){const ok=TWISTS.filter(t=>!t.cond||t.cond());let tot=ok.reduce((a,t)=>a+t.w,0),r=Math.random()*tot;window.__twistPending=ok.find(t=>(r-=t.w)<0)||ok[0]}
+ const tw=window.__twistPending;const res=_startStream0V.apply(this,arguments);
+ if(tw&&L){L.twist=tw.id;if(tw.f)tw.f(L);setTimeout(()=>{if(!L)return;pushChat("SYSTEM",`今日のテーマ：${tw.n}`);sfx("good");try{buzzFx(tw.n.replace(/^\S+\s/,""))}catch(e){}},600)}
+ window.__twistPending=null;return res};
+
+// 罰ゲーム賭け：ミニゲームの結果で締めが変わる
+const _finishStreamV=finishStream;
+finishStream=function(sc){
+ if(L&&L.twist==="bet"&&typeof sc==="number"){
+  if(sc>=0.55){L.mult*=1.12;pushChat("SYSTEM","🎲 賭けに勝った！ 罰ゲーム回避で大盛り上がり");}
+  else{L.mult*=1.15;L.fans+=3;pushChat("SYSTEM","🎲 負けた…罰ゲーム執行！ でもこれが一番の撮れ高");try{voice("suberi",true,true)}catch(e){}}}
+ return _finishStreamV.apply(this,arguments)};
+
+/* =========================================================
    話題を大幅に追加（野球専用・雑談の新カテゴリ・状況に合わせたコメント）
    ========================================================= */
 Object.assign(COMMENTS,{
@@ -6921,6 +7292,18 @@ document.head.insertAdjacentHTML("beforeend",`<style>
 @keyframes opSweep{to{transform:translateX(120%)}}
 #op .sil svg{filter:brightness(0) drop-shadow(0 0 2px #ffe9a0) drop-shadow(0 0 14px rgba(255,200,80,.8))}
 #op .closeup svg{filter:contrast(1.15) saturate(.85)}
+#op #opL.push{animation:opPush 3.4s linear both}
+@keyframes opPush{from{transform:scale(1)}to{transform:scale(1.07)}}
+#op #opL.pushfast{animation:opPushF 1.4s cubic-bezier(.2,.7,.2,1) both}
+@keyframes opPushF{from{transform:scale(1.18)}to{transform:scale(1)}}
+#op .glitch{animation:opGlitch 1.6s steps(1) infinite}
+@keyframes opGlitch{0%,100%{text-shadow:0 0 0 transparent}8%{text-shadow:-3px 0 #ff2e88,3px 0 #2de2e6}10%{text-shadow:0 0 0 transparent}53%{text-shadow:2px 0 #ff2e88,-2px 0 #2de2e6;transform:translateX(2px)}55%{text-shadow:none;transform:none}}
+#op .led{position:absolute;left:8%;right:8%;top:11vh;height:30vh;border-radius:6px;overflow:hidden;background:#0b0618;border:2px solid rgba(255,255,255,.15);box-shadow:0 0 40px rgba(155,92,255,.45)}
+#op .led:before{content:"";position:absolute;inset:0;background:radial-gradient(circle,rgba(255,255,255,.12) 1px,transparent 1.5px) 0 0/5px 5px;z-index:2}
+#op .led .run{position:absolute;white-space:nowrap;top:50%;transform:translateY(-50%);font-family:"Dela Gothic One";font-size:9vh;color:#ffd23f;text-shadow:0 0 18px #ff8a3a;animation:opRun 4s linear infinite}
+@keyframes opRun{from{left:100%}to{left:-180%}}
+#op .wipe{position:absolute;inset:0;z-index:7;background:#fff;pointer-events:none;animation:opWipe .5s cubic-bezier(.7,0,.3,1) both}
+@keyframes opWipe{0%{clip-path:polygon(0 0,0 0,-20% 100%,-20% 100%)}50%{clip-path:polygon(0 0,120% 0,100% 100%,-20% 100%)}100%{clip-path:polygon(120% 0,120% 0,100% 100%,100% 100%)}}
 </style>`);
 function opSchedule2(A){if(!A)return;const t0=A.ac.currentTime,B=60/128,beat=i=>t0+5.2+i*B;
  A.bass(t0+0.2,55,2.4);A.bass(t0+2.6,49,2.6);A.impact(t0+5.2);
@@ -6944,6 +7327,11 @@ function playOpening(after){
  const clear=()=>{L.innerHTML="";sub("")};
  const sub=t=>{if(!t){SUB.classList.remove("on");return}SUB.innerHTML=t;SUB.classList.remove("on");void SUB.offsetWidth;SUB.classList.add("on")};
  const lb=open=>op.querySelectorAll(".lb").forEach(b=>b.classList.toggle("open",open));
+ const cam=k=>{L.classList.remove("push","pushfast");void L.offsetWidth;if(k)L.classList.add(k)};
+ const wipe=()=>{const w=document.createElement("div");w.className="wipe";op.appendChild(w);setTimeout(()=>w.remove(),520);if(A)A.hat(A.ac.currentTime,0.5)};
+ let fw=[];const firework=(x,y,col)=>{for(let i=0;i<70;i++){const a=i/70*Math.PI*2,v=R(120,260);fw.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,age:0,life:R(1,1.6),c:col})}if(A)A.kick(A.ac.currentTime)};
+ const pyro=()=>{for(let i=0;i<4;i++)setTimeout(()=>{if(!ended)firework(W*R(0.15,0.85),Hh*R(0.15,0.4),pick(["#ffd23f","#ff2e88","#2de2e6","#fff"]))},i*180)};
+ const crowdFG=[];for(let i=0;i<26;i++)crowdFG.push({x:i/25,s:R(0.8,1.25),p:R(0,7),arm:Math.random()<0.6,c:pick(["#ff2e88","#2de2e6","#ffd23f","#9b5cff","#fff"])});
  const shake=()=>{op.classList.remove("shake");void op.offsetWidth;op.classList.add("shake")};
  const finish=()=>{if(ended)return;ended=true;timers.forEach(clearTimeout);if(A)A.stop();try{localStorage.setItem(OP_KEY,"1")}catch(e){}op.style.transition="opacity .5s";op.style.opacity="0";setTimeout(()=>{op.remove();window.removeEventListener("resize",fit);after&&after()},500)};
  op.addEventListener("click",()=>{if(performance.now()-start>400)finish()});
@@ -6956,22 +7344,22 @@ function playOpening(after){
  /* A：コールドオープン */
  at(200,()=>{scene="black";const t=el(`<div class="cap on" style="top:40%;font-size:13px;letter-spacing:.6em;font-family:'Bebas Neue';opacity:.8">2026.11 ― TOKYO</div>`)});
  at(600,()=>opVoice("longnight"));
- at(1300,()=>{const t=el(`<div class="cap dela slam" style="top:46%;font-size:clamp(22px,7vw,34px);opacity:1">その夜、ドームが揺れた。</div>`)});
+ at(1300,()=>{const t=el(`<div class="cap dela slam glitch" style="top:46%;font-size:clamp(22px,7vw,34px);opacity:1">その夜、ドームが揺れた。</div>`)});
  /* B：ドーム外観 */
- at(2600,()=>{clear();scene="dome";
+ at(2600,()=>{clear();scene="dome";cam("push");
   el(`<div class="cap on" style="top:56%;font-size:13px;letter-spacing:.35em">加賀ジュンジ 主催</div>`);
   at(250,()=>el(`<div class="cap metal slam" style="top:60%;font-size:clamp(34px,11vw,56px);line-height:1.05;opacity:1">STREAMER<br>DOME</div>`));
   at(700,()=>el(`<div class="cap on" style="top:79%;font-size:12px;letter-spacing:.5em;color:#ffd23f">2 DAYS ・ 6 GAMES ・ 55,000</div>`))});
  at(3000,()=>opVoice("dome"));
  /* C：主催者 */
- at(5200,()=>{clear();scene="org";flash=1;light=1;
+ at(5200,()=>{clear();scene="org";flash=1;light=1;cam("push");pyro();
+  el(`<div class="led"><div class="run">加賀ジュンジ ★ ORGANIZER ★ 加賀ジュンジ ★</div></div>`);
   el(`<div class="ava rise" style="opacity:1;left:50%;bottom:9vh;margin-left:-${big/2}px">${avatar(H.look,"normal",big)}</div>`);
   el(`<div class="vtxt" style="right:5%;top:14vh;color:#ffd23f">ORGANIZER</div>`);
-  at(500,()=>el(`<div class="cap metal slam" style="top:13vh;font-size:clamp(34px,11vw,58px);opacity:1">加賀ジュンジ</div>`));
   at(900,()=>sub("「全国の配信者ども……待たせたな」"));
-  at(2300,()=>{sub("「――いくぞォッ！！」");opVoice("nyujo");flash=0.6;shake()})});
+  at(2300,()=>{sub("「――いくぞォッ！！」");opVoice("nyujo");flash=0.6;shake();pyro()})});
  /* D：キャプテン */
- caps.forEach((p,i)=>at(8600+i*820,()=>{clear();scene="team";const [c1,c2]=TC[p.id]||["#9b5cff","#100820"];teamCol=c1;flash=0.5;
+ caps.forEach((p,i)=>at(8600+i*820,()=>{clear();wipe();cam("pushfast");scene="team";const [c1,c2]=TC[p.id]||["#9b5cff","#100820"];teamCol=c1;flash=0.5;
   el(`<div class="card wipeL" style="background:radial-gradient(120% 80% at 30% 70%,${c1}cc,${c2} 70%),${c2}">
     <div style="position:absolute;inset:0;background:repeating-linear-gradient(115deg,rgba(255,255,255,.06) 0 2px,transparent 2px 22px)"></div>
     <div class="dela" style="position:absolute;left:-4%;top:12vh;font-size:clamp(90px,30vw,170px);line-height:.9;color:rgba(255,255,255,.08)">0${i+1}</div>
@@ -6982,36 +7370,36 @@ function playOpening(after){
      <div class="dela slam" style="font-size:clamp(34px,11vw,60px);color:#fff;text-shadow:0 4px 0 ${c2},0 0 24px ${c1}">${p.name}</div></div>
     <div class="sweep"></div></div>`);
   sparks(26,W*(i%2?0.75:0.25),Hh*0.6,[c1,"#fff"])}));
- at(11900,()=>{clear();scene="grid";teamCol=null;flash=0.8;shake();
+ at(11900,()=>{clear();cam("pushfast");scene="grid";teamCol=null;flash=0.8;shake();pyro();
   const g=el(`<div style="position:absolute;left:4%;right:4%;top:13vh;bottom:13vh;display:grid;grid-template-columns:1fr 1fr;gap:8px"></div>`);
   caps.forEach((p,i)=>{const [c1,c2]=TC[p.id]||["#9b5cff","#100820"];const d=document.createElement("div");d.className="slam";d.style.cssText=`animation-delay:${i*0.07}s;position:relative;overflow:hidden;border-radius:12px;border:2px solid ${c1};background:radial-gradient(100% 80% at 50% 80%,${c1}aa,${c2})`;
    d.innerHTML=`<div style="position:absolute;left:50%;bottom:0;transform:translateX(-50%)">${avatar(p.look,"happy",Math.min(W*0.44,Hh*0.3))}</div><div class="dela" style="position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:14px;color:#fff;text-shadow:0 2px 0 ${c2}">${p.name}</div>`;g.appendChild(d)});
   el(`<div class="cap metal slam" style="top:calc(50% - 22px);font-size:clamp(30px,10vw,48px);opacity:1">4 TEAMS</div>`)});
  /* E：2日間・6種目 */
- at(12900,()=>{clear();scene="games";
+ at(12900,()=>{clear();wipe();cam("");scene="games";
   const G=[["DAY 1","FPS","#ff4b5c"],["DAY 1","BASEBALL","#ffd23f"],["DAY 1","COOKING","#ff8a3a"],["DAY 2","PK SHOOTOUT","#2de2e6"],["DAY 2","CAR CHASE","#9b5cff"],["DAY 2","KARAOKE","#ff2e88"]];
   G.forEach(([d,n,c],i)=>at(i*230,()=>{el(`<div class="wipeL" style="position:absolute;left:0;right:0;top:calc(12vh + ${i} * (76vh / 6));height:calc(76vh / 6 - 6px);background:linear-gradient(90deg,${c},${c}33 70%,transparent);display:flex;align-items:center;gap:12px;padding-left:6%">
    <span style="font-family:'Bebas Neue';letter-spacing:.2em;font-size:14px;color:#000;background:#fff;padding:2px 6px">${d}</span><span class="dela" style="font-size:clamp(22px,7vw,36px);color:#fff;text-shadow:0 3px 0 rgba(0,0,0,.4)">${n}</span></div>`);if(A)A.hat(A.ac.currentTime,0.45)}))});
  /* F：新人 */
- at(14600,()=>{clear();scene="spot";
+ at(14600,()=>{clear();cam("push");scene="spot";
   el(`<div class="ava sil" style="opacity:1;left:50%;bottom:9vh;margin-left:-${Math.min(W*0.4,Hh*0.24)}px">${avatar(genLook("rookie_op","m"),"normal",Math.min(W*0.8,Hh*0.48))}</div>`);
   at(300,()=>sub("そして――まだ誰も知らない新人が、ひとり。"));
   at(1300,()=>opVoice("kakushin"))});
  /* G：主催者のアップ */
- at(17000,()=>{clear();scene="close";lines={c:"#ff3a4a",n:70};flash=0.4;
+ at(17000,()=>{clear();cam("push");scene="close";lines={c:"#ff3a4a",n:70};flash=0.4;
   el(`<div class="ava closeup" style="opacity:1;left:50%;top:6vh;margin-left:-${W*1.0}px">${avatar(H.look,"normal",W*2.0)}</div>`);
   el(`<div style="position:absolute;inset:0;background:radial-gradient(70% 55% at 50% 40%,transparent 40%,rgba(120,0,10,.55))"></div>`);
   at(250,()=>el(`<div class="cap dela slam" style="top:auto;bottom:calc(9vh + 16px);font-size:clamp(30px,10vw,50px);color:#fff;opacity:1;text-shadow:0 0 3px #000,0 4px 0 #6a0010">「優勝は……」</div>`))});
  /* H：お前だ */
- at(18400,()=>{clear();scene="you";lines={c:"#ffe27a",n:90};flash=1;shake();
+ at(18400,()=>{clear();cam("pushfast");scene="you";pyro();lines={c:"#ffe27a",n:90};flash=1;shake();
   el(`<div class="ava sil" style="opacity:1;left:50%;bottom:9vh;margin-left:-${Math.min(W*0.5,Hh*0.3)}px;transform:scale(1.02)">${avatar(genLook("rookie_op","m"),"normal",Math.min(W*1.0,Hh*0.6))}</div>`);
   el(`<div class="cap gold slam" style="top:12vh;font-size:clamp(56px,19vw,110px);line-height:1;opacity:1">お前だ<br>！！！</div>`);
   sparks(120,W/2,Hh*0.55,["#ffd23f","#fff","#ff8a3a"]);
   at(250,()=>opVoice("junkita"));at(500,()=>{confetti(140)})});
  /* I：ロゴ */
- at(20100,()=>{clear();scene="logo";lines=null;flash=1;lb(true);confetti(120);sparks(80,W/2,Hh*0.4,["#ff2e88","#2de2e6","#fff"]);
+ at(20100,()=>{clear();cam("pushfast");scene="logo";lines=null;flash=1;lb(true);pyro();setTimeout(()=>{if(!ended)pyro()},900);confetti(120);sparks(80,W/2,Hh*0.4,["#ff2e88","#2de2e6","#fff"]);
   el(`<div class="cap on" style="top:25%;font-size:12px;letter-spacing:.45em;font-family:'Bebas Neue'">STREAMER LIFE SIMULATION</div>`);
-  el(`<div class="cap on logo2 slam" style="top:29%">BUZZ<br>&amp; BURN</div>`);
+  el(`<div class="cap on logo2 slam glitch" style="top:29%">BUZZ<br>&amp; BURN</div>`);el(`<div class="sweep" style="z-index:3"></div>`);
   at(600,()=>el(`<div class="cap dela slam" style="top:60%;font-size:clamp(18px,5.6vw,26px);opacity:1;color:#fff">配信者成り上がり十年記</div>`));
   at(1500,()=>{const t=el(`<div class="cap on" style="top:76%;font-size:14px;letter-spacing:.4em;animation:opBlink 1.4s infinite">TAP TO START</div>`);op.querySelector(".skip").style.display="none"})});
 
@@ -7039,7 +7427,10 @@ function playOpening(after){
    const fl=ctx.createRadialGradient(sx,Hh*0.88,10,sx,Hh*0.88,W*0.5);fl.addColorStop(0,"rgba(255,235,190,.4)");fl.addColorStop(1,"rgba(255,235,190,0)");ctx.fillStyle=fl;ctx.fillRect(0,0,W,Hh);
    for(let i=0;i<40;i++){const y=(i*37+t*20)%Hh,x=sx+Math.sin(i*3.1)*W*0.25*(y/Hh);ctx.fillStyle="rgba(255,240,210,.25)";ctx.fillRect(x,y,1.5,1.5)}}
   if(scene==="close"){ctx.fillStyle="#1a0206";ctx.fillRect(0,0,W,Hh)}
+  fw.forEach(p=>{p.age+=dt;p.vy+=120*dt;p.vx*=0.985;p.vy*=0.985;p.x+=p.vx*dt;p.y+=p.vy*dt;const a=Math.max(0,1-p.age/p.life);ctx.globalAlpha=a;ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,2.4,2.4);ctx.globalAlpha=a*0.3;ctx.fillRect(p.x-p.vx*0.03,p.y-p.vy*0.03,2,2)});ctx.globalAlpha=1;fw=fw.filter(p=>p.age<p.life);
   fctx.clearRect(0,0,W,Hh);
+  if(scene==="org"||scene==="grid"||scene==="logo"||scene==="dome"){const by=Hh*(1-0.09)+4;crowdFG.forEach((c,i)=>{const x=c.x*W,s=c.s*Math.min(W,Hh)*0.07,bob=Math.sin(t*6+c.p)*s*0.12;fctx.fillStyle="#020105";fctx.beginPath();fctx.arc(x,by-s*1.25+bob,s*0.5,0,7);fctx.fill();fctx.beginPath();fctx.ellipse(x,by,s*1.0,s*0.75,0,Math.PI,0);fctx.fill();
+   if(c.arm){const ax=x+s*0.45,ay=by-s*0.6,hx=ax+Math.sin(t*5+c.p)*s*0.5,hy=by-s*2.2+bob;fctx.strokeStyle="#020105";fctx.lineWidth=s*0.25;fctx.lineCap="round";fctx.beginPath();fctx.moveTo(ax,ay);fctx.lineTo(hx,hy);fctx.stroke();fctx.strokeStyle=c.c;fctx.lineWidth=s*0.18;fctx.shadowColor=c.c;fctx.shadowBlur=12;fctx.beginPath();fctx.moveTo(hx,hy);fctx.lineTo(hx+Math.sin(t*5+c.p)*s*0.3,hy-s*0.7);fctx.stroke();fctx.shadowBlur=0}})}
   // 集中線
   if(lines){const cx=W/2,cy=scene==="close"?Hh*0.42:Hh*0.55,Rr=Math.hypot(W,Hh);fctx.fillStyle=lines.c;for(let i=0;i<lines.n;i++){const a=(i/lines.n)*Math.PI*2+Math.random()*0.05,w=R(0.004,0.014),r0=Rr*R(0.2,0.34);fctx.globalAlpha=R(.25,.7);fctx.beginPath();fctx.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0);fctx.lineTo(cx+Math.cos(a-w)*Rr,cy+Math.sin(a-w)*Rr);fctx.lineTo(cx+Math.cos(a+w)*Rr,cy+Math.sin(a+w)*Rr);fctx.fill()}fctx.globalAlpha=1}
   // パーティクル
